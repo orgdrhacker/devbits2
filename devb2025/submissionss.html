@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Codeforces Submissions Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white p-6">
+    <div class="max-w-3xl mx-auto bg-gray-800 p-6 rounded-lg shadow-lg">
+        <h2 class="text-2xl font-bold text-center text-gray-200 mb-4">Codeforces Submissions Viewer</h2>
+        <input type="text" id="handleInput" class="w-full p-2 border rounded mb-4 bg-gray-700 text-white" placeholder="Enter Codeforces handle">
+        <button onclick="fetchSubmissions()" class="w-full bg-blue-500 text-white p-2 rounded">Fetch Submissions</button>
+        <table class="w-full mt-4 border-collapse">
+            <thead>
+                <tr class="bg-gray-700">
+                    <th class="border p-2">Problem</th>
+                    <th class="border p-2">Language</th>
+                    <th class="border p-2">Verdict</th>
+                    <th class="border p-2">Time</th>
+                </tr>
+            </thead>
+            <tbody id="submissionsTable"></tbody>
+        </table>
+    </div>
+    
+    <script>
+        async function fetchSubmissions() {
+            const userHandle = document.getElementById('handleInput').value;
+            if (!userHandle) {
+                alert('Please enter a Codeforces handle');
+                return;
+            }
+            const url = `https://codeforces.com/api/user.status?handle=${userHandle}`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.status !== 'OK') {
+                    alert('Error fetching data');
+                    return;
+                }
+                const submissionsTable = document.getElementById('submissionsTable');
+                submissionsTable.innerHTML = '';
+                
+                data.result.forEach(submission => {
+                    const row = `<tr class="border bg-gray-700">
+                        <td class="border p-2"><a href="https://codeforces.com/contest/${submission.problem.contestId}/problem/${submission.problem.index}" class="text-blue-400">${submission.problem.name}</a></td>
+                        <td class="border p-2">${submission.programmingLanguage}</td>
+                        <td class="border p-2 ${submission.verdict === 'OK' ? 'text-green-400' : 'text-red-400'}">${submission.verdict}</td>
+                        <td class="border p-2">${submission.timeConsumedMillis} ms</td>
+                    </tr>`;
+                    submissionsTable.innerHTML += row;
+                });
+            } catch (error) {
+                alert('Failed to fetch submissions');
+            }
+        }
+    </script>
+</body>
+</html>
