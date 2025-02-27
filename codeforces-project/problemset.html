@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HeckerBhai - Problemset</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white">
+  <!-- Navigation Header -->
+  <header class="bg-gray-800 p-4 shadow-lg w-full">
+    <nav class="flex items-center">
+      <!-- Left: Website Name -->
+      <div>
+        <a href="index.html" class="text-2xl font-bold pl-4">HeckerBhai</a>
+      </div>
+      <!-- Right: Navigation Links -->
+      <div class="flex ml-auto items-center space-x-6 pr-4">
+        <a href="index.html" class="text-lg font-semibold hover:underline">HOME</a>
+        <a href="profile.html" class="text-lg font-semibold hover:underline">PROFILE</a>
+        <a href="submissions.html" class="text-lg font-semibold hover:underline">SUBMISSIONS</a>
+        <a href="contest_list.html" class="text-lg font-semibold hover:underline">CONTESTS</a>
+        <a href="problemset.html" class="text-lg font-semibold hover:underline">PROBLEMSET</a>
+        <div id="auth-item">
+          <a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main Content Container -->
+  <div class="max-w-6xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg">
+    <h2 class="text-3xl font-bold text-center mb-6">Problemset</h2>
+    <table class="w-full border-collapse">
+      <thead>
+        <tr class="bg-gray-700">
+          <th class="border p-2">Contest</th>
+          <th class="border p-2">Index</th>
+          <th class="border p-2">Name</th>
+          <th class="border p-2">Rating</th>
+          <th class="border p-2">Tags</th>
+        </tr>
+      </thead>
+      <tbody id="problemsTable"></tbody>
+    </table>
+    <!-- Pagination Buttons -->
+    <div class="flex justify-between mt-6">
+      <button id="prevBtn" class="bg-gray-600 px-4 py-2 rounded hover:bg-gray-500" disabled>Previous</button>
+      <button id="nextBtn" class="bg-gray-600 px-4 py-2 rounded hover:bg-gray-500">Next</button>
+    </div>
+  </div>
+
+  <script>
+    let currentPage = 1;
+    const problemsPerPage = 100;
+    let problems = [];
+
+    // Update header function (shared across pages)
+    function updateHeader() {
+      const authItem = document.getElementById('auth-item');
+      const storedUsername = localStorage.getItem('cf_username');
+      if (storedUsername) {
+        authItem.innerHTML = `
+          <div class="relative">
+            <a href="#" id="auth-link" class="text-lg font-semibold hover:underline">${storedUsername} ▼</a>
+            <ul id="dropdown-menu" class="absolute right-0 mt-2 w-48 bg-gray-700 text-white shadow-lg rounded hidden">
+              <li class="border-b border-gray-600"><a href="user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a></li>
+              <li class="border-b border-gray-600"><a href="progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a></li>
+              <li><a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a></li>
+            </ul>
+          </div>
+        `;
+        document.getElementById('auth-link').addEventListener('click', function(e) {
+          e.preventDefault();
+          document.getElementById('dropdown-menu').classList.toggle('hidden');
+        });
+        document.getElementById('logout').addEventListener('click', function(e) {
+          e.preventDefault();
+          localStorage.removeItem('cf_username');
+          updateHeader();
+          window.location.href = "index.html";
+        });
+      } else {
+        authItem.innerHTML = `<a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">Login</a>`;
+      }
+    }
+    document.addEventListener("DOMContentLoaded", updateHeader);
+
+    // Fetch problemset from Codeforces API
+    async function fetchProblems() {
+      try {
+        const response = await fetch("https://codeforces.com/api/problemset.problems");
+        const data = await response.json();
+        if (data.status === "OK") {
+          problems = data.result.problems;
+          displayProblems();
+        } else {
+          alert("Error fetching problem set");
+        }
+      } catch (error) {
+        alert("Failed to fetch problem set");
+      }
+    }
+
+    // Display problems for current page
+    function displayProblems() {
+      const problemsTable = document.getElementById("problemsTable");
+      problemsTable.innerHTML = "";
+      const startIndex = (currentPage - 1) * problemsPerPage;
+      const endIndex = startIndex + problemsPerPage;
+      const problemsToShow = problems.slice(startIndex, endIndex);
+      
+      problemsToShow.forEach(problem => {
+        const tags = problem.tags.join(', ');
+        const contestLink = problem.contestId ? `https://codeforces.com/problemset/problem/${problem.contestId}/${problem.index}` : "#";
+        const row = `<tr class="border bg-gray-700">
+          <td class="border p-2">${problem.contestId || '-'}</td>
+          <td class="border p-2">${problem.index || '-'}</td>
+          <td class="border p-2"><a href="${contestLink}" target="_blank" class="text-blue-400 hover:underline">${problem.name}</a></td>
+          <td class="border p-2">${problem.rating || '-'}</td>
+          <td class="border p-2">${tags}</td>
+        </tr>`;
+        problemsTable.innerHTML += row;
+      });
+      
+      document.getElementById("prevBtn").disabled = (currentPage === 1);
+      document.getElementById("nextBtn").disabled = (endIndex >= problems.length);
+    }
+
+    document.getElementById("prevBtn").addEventListener("click", () => {
+      if (currentPage > 1) {
+        currentPage--;
+        displayProblems();
+      }
+    });
+
+    document.getElementById("nextBtn").addEventListener("click", () => {
+      currentPage++;
+      displayProblems();
+    });
+
+    document.addEventListener("DOMContentLoaded", fetchProblems);
+  </script>
+</body>
+</html>

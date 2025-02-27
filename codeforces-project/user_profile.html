@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Profile - Codeforces Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white">
+  <header class="bg-gray-800 p-4 shadow-lg w-full">
+    <nav class="flex items-center">
+      <!-- Left: Website Name -->
+      <div>
+        <a href="index.html" class="text-2xl font-bold pl-4">HeckerBhai</a>
+      </div>
+      <!-- Right: Navigation Links -->
+      <div class="flex ml-auto items-center space-x-6 pr-4">
+        <a href="index.html" class="text-lg font-semibold hover:underline">HOME</a>
+        <a href="profile.html" class="text-lg font-semibold hover:underline">PROFILE</a>
+        <a href="submissions.html" class="text-lg font-semibold hover:underline">SUBMISSIONS</a>
+        <a href="contest_list.html" class="text-lg font-semibold hover:underline">CONTESTS</a>
+        <a href="problemset.html" class="text-lg font-semibold hover:underline">PROBLEMSET</a>
+        <div id="auth-item">
+          <a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main Content Container -->
+  <div class="max-w-4xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg">
+    <h1 class="text-3xl font-bold text-center mb-6">Your Profile</h1>
+    <div id="userInfo" class="text-center"></div>
+  </div>
+
+  <script>
+    // Update header function (same as in other pages)
+    function updateHeader() {
+      const authItem = document.getElementById('auth-item');
+      const storedUsername = localStorage.getItem('cf_username');
+      if (storedUsername) {
+        authItem.innerHTML = `
+          <div class="relative">
+            <a href="#" id="auth-link" class="text-lg font-semibold hover:underline">${storedUsername} ▼</a>
+            <ul id="dropdown-menu" class="absolute right-0 mt-2 w-48 bg-gray-700 text-white shadow-lg rounded hidden">
+              <li class="border-b border-gray-600"><a href="user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a></li>
+              <li class="border-b border-gray-600"><a href="progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a></li>
+              <li><a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a></li>
+            </ul>
+          </div>
+        `;
+        document.getElementById('auth-link').addEventListener('click', function(e) {
+          e.preventDefault();
+          document.getElementById('dropdown-menu').classList.toggle('hidden');
+        });
+        document.getElementById('logout').addEventListener('click', function(e) {
+          e.preventDefault();
+          localStorage.removeItem('cf_username');
+          updateHeader();
+          window.location.href = "index.html";
+        });
+      } else {
+        authItem.innerHTML = `<a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">Login</a>`;
+      }
+    }
+    document.addEventListener("DOMContentLoaded", updateHeader);
+
+    // Ensure user is logged in; if not, redirect to login page.
+    const username = localStorage.getItem('cf_username');
+    if (!username) {
+      window.location.href = "login.html";
+    } else {
+      // Fetch user info from Codeforces API directly.
+      fetch(`https://codeforces.com/api/user.info?handles=${username}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === "OK") {
+            const user = data.result[0];
+            document.getElementById('userInfo').innerHTML = `
+              ${user.avatar && !user.avatar.includes('no-avatar') 
+                ? `<img src="${user.avatar}" alt="Avatar" class="w-24 h-24 rounded-full mx-auto mb-4">`
+                : ''}\n
+              <h2 class="text-2xl font-bold">${user.handle}</h2>\n
+              <p>Rank: <span class="font-semibold text-blue-400">${user.rank || 'N/A'}</span></p>\n
+              <p>Rating: <span class="font-semibold text-yellow-400">${user.rating || 'N/A'}</span></p>\n
+              <p>Max Rating: <span class="font-semibold text-red-400">${user.maxRating || 'N/A'}</span></p>\n
+              <p>Contribution: <span class="font-semibold text-green-400">${user.contribution || 'N/A'}</span></p>\n
+              <p>Friends Count: <span class="font-semibold text-purple-400">${user.friendOfCount || 'N/A'}</span></p>\n
+              <p>City: <span class="font-semibold text-gray-300">${user.city || 'N/A'}</span></p>\n
+              <p>Country: <span class="font-semibold text-gray-300">${user.country || 'N/A'}</span></p>\n
+              <p>Organization: <span class="font-semibold text-indigo-400">${user.organization || 'N/A'}</span></p>\n
+            `;
+          } else {
+            document.getElementById('userInfo').innerHTML = `<p class="text-red-400">Error fetching user info.</p>`;
+          }
+        })
+        .catch(error => {
+          document.getElementById('userInfo').innerHTML = `<p class="text-red-400">Failed to fetch user info.</p>`;
+        });
+    }
+  </script>
+</body>
+</html>
