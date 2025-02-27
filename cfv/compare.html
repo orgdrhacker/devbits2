@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CF_ORG - Codeforces Visualizer</title>
+  <!-- Using Tailwind CSS for a dark theme -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white">
+  <!-- Navigation Header -->
+  <header class="bg-gray-800 p-4 shadow-lg w-full">
+    <nav class="max-w-4xl mx-auto flex justify-between items-center">
+      <!-- Left side: Website Name -->
+      <div class="flex items-center space-x-6">
+        <a href="index.html" class="text-2xl font-bold hover:underline">CF_ORG</a>
+        <a href="index.html" class="text-lg font-semibold hover:underline">Home</a>
+        <a href="compare.html" class="text-lg font-semibold hover:underline">Compare</a>
+        <a href="virtual-rating-change.html" class="text-lg font-semibold hover:underline">Virtual Rating Change</a>
+        <a href="about.html" class="text-lg font-semibold hover:underline">Say Something</a>
+      </div>
+      <!-- Right side: Auth area -->
+      <div id="auth-item">
+        <a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">Login</a>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-4xl mx-auto mt-12 p-6">
+    <!-- Handle Card / Comparison Form -->
+    <div class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6">
+      <form id="handleform" class="space-y-4">
+        <div class="flex flex-col">
+          <label for="handle1" class="font-semibold">Handle 1</label>
+          <input type="text" id="handle1" name="handle1" class="p-2 bg-gray-700 border border-gray-600 rounded" placeholder="Enter first Codeforces handle">
+          <span id="handle1DivErr" class="text-red-400 hidden">Couldn't find user. Network problem?</span>
+        </div>
+        <div class="flex flex-col">
+          <label for="handle2" class="font-semibold">Handle 2</label>
+          <input type="text" id="handle2" name="handle2" class="p-2 bg-gray-700 border border-gray-600 rounded" placeholder="Enter second Codeforces handle">
+          <span id="handle2DivErr" class="text-red-400 hidden">Couldn't find user. Network problem?</span>
+        </div>
+        <!-- New Input: User Photo URL for Handle 1 -->
+        <div class="flex flex-col">
+          <label for="handle1Photo" class="font-semibold">Handle 1 Photo URL</label>
+          <input type="text" id="handle1Photo" name="handle1Photo" class="p-2 bg-gray-700 border border-gray-600 rounded" placeholder="Enter photo URL">
+        </div>
+        <button id="submitButton" type="submit" class="bg-blue-500 p-2 rounded font-semibold hover:bg-blue-600">Compare</button>
+      </form>
+    </div>
+    <!-- Additional Content Sections (e.g., ratings, timeline, etc.) -->
+    <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+      <p>Additional content goes here...</p>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-gray-800 p-4 mt-12">
+    <div class="max-w-4xl mx-auto text-center">
+      <p>Developed by <a href="https://facebook.com/sjsakib" class="text-blue-400 hover:underline">sjsakib</a></p>
+    </div>
+  </footer>
+
+  <!-- Optional GitHub button script -->
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+
+  <!-- JavaScript for updating header (applied universally) -->
+  <script>
+    function updateHeader() {
+      const authItem = document.getElementById('auth-item');
+      const storedUsername = localStorage.getItem('cf_username');
+      if (storedUsername) {
+        authItem.innerHTML = `
+          <div class="relative">
+            <a href="#" id="auth-link" class="text-lg font-semibold hover:underline">${storedUsername} ▼</a>
+            <ul id="dropdown-menu" class="absolute right-0 mt-2 w-48 bg-gray-700 text-white shadow-lg rounded hidden">
+              <li class="border-b border-gray-600"><a href="user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a></li>
+              <li class="border-b border-gray-600"><a href="progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a></li>
+              <li><a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a></li>
+            </ul>
+          </div>
+        `;
+        document.getElementById('auth-link').addEventListener('click', function(e) {
+          e.preventDefault();
+          document.getElementById('dropdown-menu').classList.toggle('hidden');
+        });
+        document.getElementById('logout').addEventListener('click', function(e) {
+          e.preventDefault();
+          localStorage.removeItem('cf_username');
+          updateHeader();
+          window.location.href = "index.html";
+        });
+      } else {
+        authItem.innerHTML = `<a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">Login</a>`;
+      }
+    }
+    document.addEventListener("DOMContentLoaded", updateHeader);
+  </script>
+</body>
+</html>
