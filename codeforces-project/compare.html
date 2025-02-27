@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="description" content="Codeforces Visualizer. Visualize, analyze and compare Codeforces user profiles. Compare max/min rating, contests participated, rating changes, best/worst contest positions, solved problems, and much more.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  <title>Codeforces Visualizer - Compare</title>
+  <!-- Include Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Optional: include Google Fonts if needed -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap">
+</head>
+
+<body class="bg-gray-900 text-white font-roboto">
+  <!-- Navigation Bar -->
+  <header class="bg-gray-800 p-4 shadow-lg w-full">
+    <nav class="flex items-center">
+      <!-- Left: Website Name -->
+      <div>
+        <a href="index.html" class="text-2xl font-bold pl-4">Codeforces Visualizer</a>
+      </div>
+      <!-- Right: Navigation Links -->
+      <div class="flex ml-auto items-center space-x-6 pr-4">
+        <a href="index.html" class="text-lg font-semibold hover:underline">HOME</a>
+        <a href="compare.html" class="text-lg font-semibold hover:underline">COMPARE</a>
+        <a href="virtual-rating-change.html" class="text-lg font-semibold hover:underline">VIRTUAL RATING CHANGE</a>
+        <a href="about.html" class="text-lg font-semibold hover:underline">SAY SOMETHING</a>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main Content Container -->
+  <div class="max-w-6xl mx-auto mt-8 p-6 bg-gray-800 rounded-lg shadow-lg">
+    <!-- (Optional) Loading Spinner -->
+    <div id="mainSpinner" class="hidden"></div>
+
+    <!-- Compare Form Card -->
+    <div class="mb-8 p-4 bg-gray-700 rounded shadow">
+      <form action="" id="handleform" class="space-y-4">
+        <div>
+          <label for="handle1" class="block text-lg font-semibold">Handle 1</label>
+          <input type="text" name="handle1" id="handle1" class="mt-1 block w-full p-2 bg-gray-900 border border-gray-600 rounded">
+          <p id="handle1DivErr" class="text-red-500 text-sm hidden">Couldn't find user. Network problem?</p>
+        </div>
+        <div>
+          <label for="handle2" class="block text-lg font-semibold">Handle 2</label>
+          <input type="text" name="handle2" id="handle2" class="mt-1 block w-full p-2 bg-gray-900 border border-gray-600 rounded">
+          <p id="handle2DivErr" class="text-red-500 text-sm hidden">Couldn't find user. Network problem?</p>
+        </div>
+        <button id="submitButton" type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white font-semibold">Compare</button>
+      </form>
+    </div>
+
+    <!-- Ratings Section -->
+    <div id="ratings" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
+      <!-- Ratings content goes here -->
+    </div>
+
+    <!-- Contests Count Section -->
+    <div id="contestsCount" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
+      <!-- Contests count content goes here -->
+    </div>
+
+    <!-- Up/Down Ratings Section -->
+    <div id="upDowns" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
+      <!-- Up/Down ratings content goes here -->
+    </div>
+
+    <!-- Best and Worst Section -->
+    <div id="bestWorst" class="hidden mb-4 p-4 bg-gray-700 rounded shadow overflow-x-auto">
+      <table class="min-w-full">
+        <thead>
+          <tr class="bg-teal-500">
+            <th class="px-4 py-2 text-left">Worst and Best</th>
+            <th id="user1" class="px-4 py-2"></th>
+            <th id="user2" class="px-4 py-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="bg-gray-600">
+            <td class="px-4 py-2">Best</td>
+            <td id="user1Best" class="px-4 py-2"></td>
+            <td id="user2Best" class="px-4 py-2"></td>
+          </tr>
+          <tr class="bg-gray-600">
+            <td class="px-4 py-2">Worst</td>
+            <td id="user1Worst" class="px-4 py-2"></td>
+            <td id="user2Worst" class="px-4 py-2"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Timeline Section -->
+    <div id="timelineCon" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
+      <div id="timeline">
+        <!-- Timeline content goes here -->
+      </div>
+    </div>
+
+    <!-- Solved/Tried Section -->
+    <div id="solvedTried" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
+      <!-- Solved/Tried content goes here -->
+    </div>
+
+    <!-- Unsolved Section -->
+    <div id="unsolved" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
+      <!-- Unsolved content goes here -->
+    </div>
+
+    <!-- Average Submissions Section -->
+    <div id="averageSub" title="Average submissions they had to make to solve a single problem" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
+      <!-- Average submissions content goes here -->
+    </div>
+
+    <!-- Maximum Submissions Section -->
+    <div id="maxSub" title="Maximum submissions they had to make to solve a single problem" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
+      <!-- Maximum submissions content goes here -->
+    </div>
+
+    <!-- One Submission Section -->
+    <div id="oneSub" title="Percentage of problems they've solved with just one submission" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
+      <!-- One submission content goes here -->
+    </div>
+
+    <!-- Maximum AC Section -->
+    <div id="maxAc" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
+      <!-- Maximum AC content goes here -->
+    </div>
+
+    <!-- Common Solved Table Section -->
+    <div id="commonSolvedTable" class="hidden mb-4 p-4 bg-gray-700 rounded shadow overflow-x-auto">
+      <table class="min-w-full">
+        <thead>
+          <tr class="bg-teal-500">
+            <th class="px-4 py-2 text-left">Common Solved</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="bg-gray-600">
+            <td id="commonSolved" class="px-4 py-2"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Levels Section -->
+    <div id="levels" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
+      <!-- Levels content goes here -->
+    </div>
+
+    <!-- pRatings Section -->
+    <div id="pRatings" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
+      <!-- pRatings content goes here -->
+    </div>
+
+    <!-- Tags Section -->
+    <div id="tags" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
+      <!-- Tags content goes here -->
+    </div>
+
+    <!-- Common Contests Section -->
+    <div id="commonContestsCon" class="hidden mb-4 p-4 bg-gray-700 rounded shadow overflow-x-auto">
+      <table class="min-w-full">
+        <thead>
+          <tr class="bg-teal-500">
+            <th class="px-4 py-2 text-left">Common Contests</th>
+            <th id="user1Con" class="px-4 py-2"></th>
+            <th id="user2Con" class="px-4 py-2"></th>
+            <th class="px-4 py-2">Distance</th>
+          </tr>
+        </thead>
+        <tbody id="commonContestList">
+          <!-- Common contest list content goes here -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Share and Footer Section -->
+    <div class="share-div mt-4 text-center">
+      <a class="hidden" href="javascript:fbShareResult()">Share result</a>
+      <div class="my-4">
+        <div class="fb-save" data-size="large" data-uri="https://cfviz.netlify.com"></div>
+      </div>
+      <div class="my-4">
+        <div class="fb-like fb-recommend" data-width="200" data-href="https://cfviz.netlify.com" data-layout="standard" data-action="recommend" data-size="large" data-show-faces="true" data-share="false"></div>
+      </div>
+      <div class="my-4">
+        <a class="github-button" href="https://github.com/sjsakib/cfviz" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star sjsakib/cfviz on GitHub">Star</a>
+      </div>
+      <p class="mt-4">Developed by <a href="https://facebook.com/sjsakib" class="text-blue-400 hover:underline">sjsakib</a></p>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <script src="../assets/js/compare_helper.js"></script>
+  <script src="../assets/js/compare.js"></script>
+  
+  <!-- Facebook SDK -->
+  <script>
+    window.fbAsyncInit = function() {
+      FB.init({
+        appId: '1843052242620434',
+        xfbml: true,
+        version: 'v2.8'
+      });
+      FB.AppEvents.logPageView();
+    };
+
+    (function(d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) { return; }
+      js = d.createElement(s); js.id = id;
+      js.src = "//connect.facebook.net/en_US/sdk.js";
+      fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+  </script>
+  
+  <!-- Google Analytics -->
+  <script>
+    (function(i,s,o,g,r,a,m){
+      i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)
+      },i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+    
+    ga('create', 'UA-90813960-1', 'auto');
+    ga('send', 'pageview');
+    ga('send', 'event', 'Form', 'submit');
+  </script>
+</body>
+
+</html>
