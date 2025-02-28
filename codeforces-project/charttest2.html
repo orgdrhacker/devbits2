@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Codeforces Tracker - Profile & History</title>
+  <title>Codeforces Tracker - Rating & Contest History</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Include Chart.js from CDN -->
+  <!-- Include Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-gray-900 text-white">
@@ -33,20 +33,18 @@
 
   <!-- Main Content Container -->
   <main class="max-w-4xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg">
-    <h1 class="text-3xl font-bold text-center mb-4">Codeforces Profile & Contest History</h1>
+    <h1 class="text-3xl font-bold text-center mb-4">Codeforces Rating & Contest History</h1>
     <p class="text-center text-gray-300 mb-6">
-      Enter a Codeforces username to view profile info, rating changes, and contest participation.
+      Enter a Codeforces username to view the rating changes graph and contest participation history.
     </p>
     <!-- Input Section -->
     <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
       <input type="text" id="usernameInput" placeholder="Enter Codeforces username" class="p-2 w-64 rounded bg-gray-700 text-white" />
       <button id="plotButton" class="bg-blue-500 px-4 py-2 rounded text-white hover:bg-blue-600">
-        Plot Profile & History
+        Plot Rating & History
       </button>
     </div>
     <p id="errorMessage" class="mt-4 text-center text-red-500"></p>
-    <!-- Profile Info Container -->
-    <div id="profileInfo" class="mt-6"></div>
     <!-- Canvas for the Rating Graph -->
     <canvas id="ratingChart" class="mt-6 w-full"></canvas>
     <!-- Contest List Container -->
@@ -91,23 +89,7 @@
     }
     document.addEventListener("DOMContentLoaded", updateHeader);
 
-    // Fetch profile data using Codeforces API (user.info)
-    async function fetchProfileData(username) {
-      const apiUrl = `https://codeforces.com/api/user.info?handles=${username}`;
-      try {
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-        if(data.status === 'OK') {
-          return data.result[0];
-        } else {
-          throw new Error(data.comment || 'API Error');
-        }
-      } catch (error) {
-        throw error;
-      }
-    }
-
-    // Fetch rating (contest) data using Codeforces API (user.rating)
+    // Fetch rating data for a given Codeforces username using the API
     async function fetchRatingData(username) {
       const apiUrl = `https://codeforces.com/api/user.rating?handle=${username}`;
       try {
@@ -123,27 +105,7 @@
       }
     }
 
-    // Display profile info at the top
-    function displayProfileInfo(profile) {
-      const profileInfoDiv = document.getElementById('profileInfo');
-      let html = `<div class="bg-gray-700 p-4 rounded-lg shadow flex items-center gap-4">
-                    ${profile.avatar && !profile.avatar.includes('no-avatar') ? `<img src="${profile.avatar}" alt="Avatar" class="w-16 h-16 rounded-full">` : ''}
-                    <div>
-                      <h2 class="text-2xl font-bold">${profile.handle}</h2>
-                      <p>Rank: <span class="font-semibold text-blue-400">${profile.rank || 'N/A'}</span></p>
-                      <p>Rating: <span class="font-semibold text-yellow-400">${profile.rating || 'N/A'}</span></p>
-                      <p>Max Rating: <span class="font-semibold text-red-400">${profile.maxRating || 'N/A'}</span></p>
-                      <p>Contribution: <span class="font-semibold text-green-400">${profile.contribution || 'N/A'}</span></p>
-                      <p>Friends Count: <span class="font-semibold text-purple-400">${profile.friendOfCount || 'N/A'}</span></p>
-                      <p>City: <span class="font-semibold text-gray-300">${profile.city || 'N/A'}</span></p>
-                      <p>Country: <span class="font-semibold text-gray-300">${profile.country || 'N/A'}</span></p>
-                      <p>Organization: <span class="font-semibold text-indigo-400">${profile.organization || 'N/A'}</span></p>
-                    </div>
-                  </div>`;
-      profileInfoDiv.innerHTML = html;
-    }
-
-    // Plot rating graph and display contest list
+    // Plot the rating graph and display contest history
     async function plotRatingGraphAndContests(username) {
       const errorMessage = document.getElementById('errorMessage');
       errorMessage.textContent = '';
@@ -153,7 +115,7 @@
           errorMessage.textContent = 'No rating data available for this user.';
           return;
         }
-        // Prepare data for the chart
+        // Prepare chart data arrays:
         const labels = ratingData.map(entry => {
           const date = new Date(entry.ratingUpdateTimeSeconds * 1000);
           return date.toLocaleDateString();
@@ -219,7 +181,7 @@
           }
         });
 
-        // Build contest history list
+        // Now, display contest details below the graph.
         const contestListDiv = document.getElementById('contestList');
         let contestListHtml = '<h2 class="text-2xl font-bold mb-4">Contest History</h2>';
         contestListHtml += '<ul class="space-y-4">';
@@ -241,18 +203,6 @@
       }
     }
 
-    // Main function: fetch profile info, then rating data, then plot graph and contest history.
-    async function plotProfileAndHistory(username) {
-      try {
-        const profile = await fetchProfileData(username);
-        displayProfileInfo(profile);
-        plotRatingGraphAndContests(username);
-      } catch (error) {
-        document.getElementById('errorMessage').textContent = 'Error: ' + error.message;
-        console.error(error);
-      }
-    }
-
     // Event listener for the Plot button
     document.getElementById('plotButton').addEventListener('click', function() {
       const username = document.getElementById('usernameInput').value.trim();
@@ -260,7 +210,7 @@
         document.getElementById('errorMessage').textContent = 'Please enter a Codeforces username.';
         return;
       }
-      plotProfileAndHistory(username);
+      plotRatingGraphAndContests(username);
     });
   </script>
 </body>

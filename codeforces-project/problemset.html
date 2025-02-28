@@ -47,10 +47,15 @@
 
     <!-- Results Section -->
     <div id="result" class="mt-6 text-center text-gray-300 space-y-4"></div>
+    <!-- Pagination Section -->
+    <div id="pagination" class="mt-4 flex justify-center space-x-4"></div>
   </main>
 
   <script>
     let allProblems = [];
+    let currentFilteredProblems = [];
+    let currentPage = 1;
+    const itemsPerPage = 100;
 
     // Update header for logged in users (if applicable)
     function updateHeader() {
@@ -88,7 +93,10 @@
         const data = await response.json();
         if (data.status === "OK") {
           allProblems = data.result.problems;
-          displayProblems(allProblems);
+          // Initially, no filters applied; show all problems.
+          currentFilteredProblems = allProblems;
+          currentPage = 1;
+          displayProblemsPage();
           populateTagSelector(allProblems);
         } else {
           document.getElementById("result").innerHTML = "<p class='text-red-500'>Error fetching problems.</p>";
@@ -117,7 +125,7 @@
       });
     }
 
-    // Display problems on the page (optimized)
+    // Display a given list of problems on the page
     function displayProblems(problems) {
       const resultDiv = document.getElementById("result");
       let html = "";
@@ -131,20 +139,55 @@
       resultDiv.innerHTML = html;
     }
 
-    // Filter problems by rating and selected tag (dropdown)
-    document.getElementById("filterBtn").addEventListener("click", function() {
+    // Display the current page of problems and update pagination buttons
+    function displayProblemsPage() {
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const pageProblems = currentFilteredProblems.slice(startIndex, startIndex + itemsPerPage);
+      displayProblems(pageProblems);
+      updatePaginationButtons();
+    }
+
+    // Update pagination buttons based on current page and total pages
+    function updatePaginationButtons() {
+      const paginationDiv = document.getElementById("pagination");
+      const totalPages = Math.ceil(currentFilteredProblems.length / itemsPerPage);
+      const prevDisabled = (currentPage === 1) ? "disabled" : "";
+      const nextDisabled = (currentPage === totalPages || totalPages === 0) ? "disabled" : "";
+      paginationDiv.innerHTML = `
+        <button id="prevBtn" class="bg-gray-700 px-4 py-2 rounded hover:bg-gray-600" ${prevDisabled}>Previous</button>
+        <span class="page-info text-white self-center">Page ${currentPage} of ${totalPages}</span>
+        <button id="nextBtn" class="bg-gray-700 px-4 py-2 rounded hover:bg-gray-600" ${nextDisabled}>Next</button>
+      `;
+      document.getElementById("prevBtn").addEventListener("click", function() {
+        if (currentPage > 1) {
+          currentPage--;
+          displayProblemsPage();
+        }
+      });
+      document.getElementById("nextBtn").addEventListener("click", function() {
+        if (currentPage < totalPages) {
+          currentPage++;
+          displayProblemsPage();
+        }
+      });
+    }
+
+    // Apply filters based on rating and selected tag
+    function applyFilters() {
       const minRating = parseInt(document.getElementById("minRating").value) || 0;
       const maxRating = parseInt(document.getElementById("maxRating").value) || Infinity;
       const selectedTag = document.getElementById("tagSelector").value;
-
-      const filteredProblems = allProblems.filter(p => {
+      currentFilteredProblems = allProblems.filter(p => {
         const ratingOk = p.rating >= minRating && p.rating <= maxRating;
-        // If "all" is selected, no tag filtering; otherwise, check if the problem has the selected tag.
-        const tagOk = selectedTag === "all" || p.tags.includes(selectedTag);
+        const tagOk = (selectedTag === "all") || p.tags.includes(selectedTag);
         return ratingOk && tagOk;
       });
-      displayProblems(filteredProblems);
-    });
+      currentPage = 1;
+      displayProblemsPage();
+    }
+
+    // Event listener for the filter button
+    document.getElementById("filterBtn").addEventListener("click", applyFilters);
 
     // Initialize by fetching problems on page load
     document.addEventListener("DOMContentLoaded", fetchProblems);
