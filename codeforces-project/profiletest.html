@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile - Codeforces Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white">
+  <header class="bg-gray-800 p-4 shadow-lg w-full">
+    <nav class="flex items-center">
+      <!-- Left: Website Name -->
+      <div>
+        <a href="index.html" class="text-2xl font-bold pl-4">HeckerBhai</a>
+      </div>
+      <!-- Right: Navigation Links -->
+      <div class="flex ml-auto items-center space-x-6 pr-4">
+        <a href="index.html" class="text-lg font-semibold hover:underline">HOME</a>
+        <a href="profile.html" class="text-lg font-semibold hover:underline">PROFILE</a>
+        <a href="submissions.html" class="text-lg font-semibold hover:underline">SUBMISSIONS</a>
+        <a href="contest_list.html" class="text-lg font-semibold hover:underline">CONTESTS</a>
+        <a href="problemset.html" class="text-lg font-semibold hover:underline">PROBLEMSET</a>
+        <a href="compare.html" class="text-lg font-semibold hover:underline">COMPARE</a>
+        <div id="auth-item">
+          <a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>
+        </div>
+      </div>
+    </nav>
+  </header>
+  <!-- Profile Container -->
+  <div class="max-w-4xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg">
+    <h2 class="text-3xl font-bold text-center mb-6">Codeforces User Info Viewer</h2>
+    
+    <!-- Handle Input -->
+    <input type="text" id="handleInput" class="w-full p-2 border rounded mb-4 bg-gray-700 text-white" placeholder="Enter Codeforces handles (comma-separated)">
+    <button onclick="fetchUserInfo()" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Fetch User Info</button>
+    
+    <!-- User Info Section -->
+    <div id="userInfo" class="mt-6"></div>
+  </div>
+
+  <script>
+    // Update header if a user is logged in
+    function updateHeader() {
+      const authItem = document.getElementById('auth-item');
+      const storedUsername = localStorage.getItem('cf_username');
+      if (storedUsername) {
+        authItem.innerHTML = `
+          <div class="relative">
+            <a href="#" id="auth-link" class="text-lg font-semibold hover:underline">${storedUsername} ▼</a>
+            <ul id="dropdown-menu" class="absolute right-0 mt-2 w-48 bg-gray-700 text-white shadow-lg rounded hidden">
+              <li class="border-b border-gray-600">
+                <a href="user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a>
+              </li>
+              <li class="border-b border-gray-600">
+                <a href="progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a>
+              </li>
+              <li>
+                <a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a>
+              </li>
+            </ul>
+          </div>
+        `;
+        document.getElementById('auth-link').addEventListener('click', function(e) {
+          e.preventDefault();
+          document.getElementById('dropdown-menu').classList.toggle('hidden');
+        });
+        document.getElementById('logout').addEventListener('click', function(e) {
+          e.preventDefault();
+          localStorage.removeItem('cf_username');
+          updateHeader();
+          window.location.href = "index.html";
+        });
+      } else {
+        authItem.innerHTML = `<a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>`;
+      }
+    }
+    document.addEventListener("DOMContentLoaded", updateHeader);
+
+    // Fetch user info for one or more handles
+    async function fetchUserInfo() {
+      const handles = document.getElementById('handleInput').value
+                        .split(',')
+                        .map(h => h.trim())
+                        .filter(h => h);
+      if (handles.length === 0) {
+        alert('Please enter at least one Codeforces handle');
+        return;
+      }
+      const url = `https://codeforces.com/api/user.info?handles=${handles.join(',')}`;
+      
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.status !== 'OK') {
+          alert('Error fetching data');
+          return;
+        }
+        const userInfoDiv = document.getElementById('userInfo');
+        userInfoDiv.innerHTML = '';
+        
+        data.result.forEach(user => {
+          const contestContainerId = `contestData-${user.handle}`;
+          const userCard = `
+            <div class="bg-gray-700 p-4 rounded-lg mb-4 shadow">
+              ${user.avatar && !user.avatar.includes('no-avatar') ? `<img src="${user.avatar}" alt="Avatar" class="w-16 h-16 rounded-full mb-2">` : ''}
+              <h3 class="text-xl font-bold">${user.handle}</h3>
+              <p>Rank: <span class="font-semibold text-blue-400">${user.rank || 'N/A'}</span></p>
+              <p>Rating: <span class="font-semibold text-yellow-400">${user.rating || 'N/A'}</span></p>
+              <p>Max Rating: <span class="font-semibold text-red-400">${user.maxRating || 'N/A'}</span></p>
+              <p>Contribution: <span class="font-semibold text-green-400">${user.contribution || 'N/A'}</span></p>
+              <p>Friends Count: <span class="font-semibold text-purple-400">${user.friendOfCount || 'N/A'}</span></p>
+              <p>City: <span class="font-semibold text-gray-300">${user.city || 'N/A'}</span></p>
+              <p>Country: <span class="font-semibold text-gray-300">${user.country || 'N/A'}</span></p>
+              <p>Organization: <span class="font-semibold text-indigo-400">${user.organization || 'N/A'}</span></p>
+              <!-- Contests Button: Fetch contest data from the API -->
+              <button onclick="fetchContestData('${user.handle}', '${contestContainerId}')" class="mt-4 inline-block bg-blue-500 px-4 py-2 rounded text-white hover:bg-blue-600">
+                Contests
+              </button>
+              <!-- Contest Data Container -->
+              <div id="${contestContainerId}" class="mt-4"></div>
+            </div>`;
+          userInfoDiv.innerHTML += userCard;
+        });
+      } catch (error) {
+        alert('Failed to fetch user info');
+      }
+    }
+
+    // Fetch contest (rating) data for a given user handle and display it in the specified container
+    function fetchContestData(handle, containerId) {
+      const contestDataDiv = document.getElementById(containerId);
+      contestDataDiv.innerHTML = '<p class="text-center">Loading contest data...</p>';
+      fetch(`https://codeforces.com/api/user.rating?handle=${handle}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === "OK") {
+            const contests = data.result;
+            let html = '';
+            if (contests.length === 0) {
+              html = '<p class="text-center">No contest data found for this user.</p>';
+            } else {
+              html = '<ul class="space-y-2">';
+              contests.forEach(contest => {
+                const date = new Date(contest.ratingUpdateTimeSeconds * 1000).toLocaleDateString();
+                html += `
+                  <li class="p-2 bg-gray-600 rounded">
+                    <p class="font-semibold">${contest.contestName} (ID: ${contest.contestId})</p>
+                    <p>Date: ${date}</p>
+                    <p>Rank: ${contest.rank}</p>
+                    <p>Rating Change: ${contest.oldRating} → ${contest.newRating}</p>
+                  </li>`;
+              });
+              html += '</ul>';
+            }
+            contestDataDiv.innerHTML = html;
+          } else {
+            contestDataDiv.innerHTML = `<p class="text-red-500 text-center">Error: ${data.comment}</p>`;
+          }
+        })
+        .catch(error => {
+          console.error(error);
+          contestDataDiv.innerHTML = '<p class="text-red-500 text-center">Failed to fetch contest data.</p>';
+        });
+    }
+  </script>
+</body>
+</html>
