@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Codeforces Wrong Answer Analysis by Tag & Rating Range</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white">
+  <!-- Navigation Header -->
+  <header class="bg-gray-800 p-4 shadow-lg w-full">
+    <nav class="flex items-center">
+      <!-- Left: Website Name -->
+      <div>
+        <a href="index.html" class="text-2xl font-bold pl-4">HeckerBhai</a>
+      </div>
+      <!-- Right: Navigation Links -->
+      <div class="flex ml-auto items-center space-x-6 pr-4">
+        <a href="index.html" class="text-lg font-semibold hover:underline">HOME</a>
+        <a href="profile.html" class="text-lg font-semibold hover:underline">PROFILE</a>
+        <a href="submissions.html" class="text-lg font-semibold hover:underline">SUBMISSIONS</a>
+        <a href="contest_list.html" class="text-lg font-semibold hover:underline">CONTESTS</a>
+        <a href="problemset.html" class="text-lg font-semibold hover:underline">PROBLEMSET</a>
+        <a href="compare.html" class="text-lg font-semibold hover:underline">COMPARE</a>
+        <div id="auth-item">
+          <a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="max-w-4xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg">
+    <h1 class="text-3xl font-bold text-center mb-6">Wrong Answer Analysis</h1>
+    <p class="text-center text-gray-300 mb-6">
+      Enter a Codeforces handle to see which problem tags yield the most WRONG_ANSWER verdicts.
+      Then, based on your current rating, you'll be suggested high‑rated problems (within ±200 rating) for that tag.
+    </p>
+
+    <!-- Input Section -->
+    <div class="flex flex-col sm:flex-row justify-center items-center gap-4 mb-6">
+      <input type="text" id="handleInput" placeholder="Enter Codeforces handle" class="w-full sm:w-64 p-2 rounded bg-gray-700 text-white" />
+      <button onclick="analyzeWrongAnswers()" class="w-full sm:w-auto bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
+        Analyze
+      </button>
+    </div>
+    <p id="globalMessage" class="mt-4 text-center text-lg font-semibold"></p>
+
+    <!-- Analysis by Problem Tag -->
+    <section class="mb-8">
+      <h2 class="text-2xl font-bold mb-4">Analysis by Problem Tag</h2>
+      <div id="tagSuggestion" class="mb-4"></div>
+      <div class="overflow-x-auto mb-4">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="bg-gray-700">
+              <th class="border p-2">Problem Tag</th>
+              <th class="border p-2">Wrong Answer Count</th>
+            </tr>
+          </thead>
+          <tbody id="tagResultsTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Merged Problem Suggestions -->
+    <section class="mb-8">
+      <h2 class="text-2xl font-bold mb-4">Problem Suggestions for Your Worst Tag</h2>
+      <div id="mergedSuggestionMessage" class="mb-4"></div>
+      <div id="mergedProblemSuggestions"></div>
+    </section>
+  </main>
+
+  <script>
+    /* ----------------- HEADER AUTH ----------------- */
+    function updateHeader() {
+      const authItem = document.getElementById('auth-item');
+      const storedUsername = localStorage.getItem('cf_username');
+      if (storedUsername) {
+        authItem.innerHTML = `
+          <div class="relative">
+            <a href="#" id="auth-link" class="text-lg font-semibold hover:underline">${storedUsername} ▼</a>
+            <ul id="dropdown-menu" class="absolute right-0 mt-2 w-48 bg-gray-700 text-white shadow-lg rounded hidden">
+              <li class="border-b border-gray-600">
+                <a href="user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a>
+              </li>
+              <li class="border-b border-gray-600">
+                <a href="progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a>
+              </li>
+              <li>
+                <a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a>
+              </li>
+            </ul>
+          </div>
+        `;
+        document.getElementById('auth-link').addEventListener('click', function(e) {
+          e.preventDefault();
+          document.getElementById('dropdown-menu').classList.toggle('hidden');
+        });
+        document.getElementById('logout').addEventListener('click', function(e) {
+          e.preventDefault();
+          localStorage.removeItem('cf_username');
+          updateHeader();
+          window.location.href = "index.html";
+        });
+      } else {
+        authItem.innerHTML = `<a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>`;
+      }
+    }
+    document.addEventListener("DOMContentLoaded", updateHeader);
+
+    /* ----------------- FETCH FUNCTIONS ----------------- */
+    // Fetch profile to get current rating
+    async function fetchProfileData(username) {
+      const apiUrl = `https://codeforces.com/api/user.info?handles=${username}`;
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      if (data.status === 'OK') return data.result[0];
+      throw new Error(data.comment || 'API Error');
+    }
+
+    // Fetch submissions (up to 10,000)
+    async function fetchSubmissions(username) {
+      const url = `https://codeforces.com/api/user.status?handle=${username}&count=10000`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.status === 'OK') return data.result;
+      throw new Error(data.comment || "Failed to fetch submissions");
+    }
+
+    /* ----------------- ANALYSIS & SUGGESTIONS ----------------- */
+    async function analyzeWrongAnswers() {
+      const handle = document.getElementById('handleInput').value.trim();
+      if (!handle) {
+        alert('Please enter a Codeforces handle.');
+        return;
+      }
+      
+      // Save handle for future use.
+      localStorage.setItem("cf_username", handle);
+      document.getElementById('globalMessage').textContent = "Analyzing submissions...";
+      
+      // Clear previous results
+      document.getElementById('tagResultsTable').innerHTML = "";
+      document.getElementById('tagSuggestion').textContent = "";
+      document.getElementById('mergedSuggestionMessage').textContent = "";
+      document.getElementById('mergedProblemSuggestions').innerHTML = "";
+      
+      try {
+        // Fetch profile to get current rating
+        const profile = await fetchProfileData(handle);
+        const currentRating = profile.rating;
+        
+        // Fetch submissions
+        const submissions = await fetchSubmissions(handle);
+        if (!submissions.length) {
+          document.getElementById('globalMessage').textContent = "No submissions found for this handle.";
+          return;
+        }
+        
+        // Aggregate wrong answer counts by tag
+        const tagCounts = {};
+        submissions.forEach(sub => {
+          if (sub.verdict === "WRONG_ANSWER" && sub.problem && sub.problem.tags) {
+            sub.problem.tags.forEach(tag => {
+              tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+            });
+          }
+        });
+        let tagResults = Object.keys(tagCounts).map(tag => ({ tag, count: tagCounts[tag] }));
+        tagResults.sort((a, b) => b.count - a.count);
+        
+        // Display tag analysis results
+        const tagTableBody = document.getElementById('tagResultsTable');
+        tagResults.forEach(result => {
+          const row = document.createElement('tr');
+          row.className = "bg-gray-700";
+          row.innerHTML = `<td class="border p-2">${result.tag}</td><td class="border p-2">${result.count}</td>`;
+          tagTableBody.appendChild(row);
+        });
+        
+        // Determine worst-performing tag
+        const worstTag = tagResults.length ? tagResults[0].tag : null;
+        if (worstTag) {
+          document.getElementById('tagSuggestion').textContent = 
+            `You have the most wrong answers in the "${worstTag}" category (${tagResults[0].count}).`;
+        } else {
+          document.getElementById('tagSuggestion').textContent = "No tag analysis available.";
+        }
+        
+        // Now fetch merged suggestions:
+        if (worstTag && currentRating) {
+          // Use currentRating ± 200
+          suggestHighRatedProblemsForTagInRange(worstTag, currentRating);
+        }
+        
+        document.getElementById('globalMessage').textContent = "Analysis complete.";
+        
+      } catch (error) {
+        console.error(error);
+        document.getElementById('globalMessage').textContent = "Error: " + error.message;
+      }
+    }
+    
+    // Function to suggest high rated problems for a given tag within currentRating ±200
+    async function suggestHighRatedProblemsForTagInRange(tag, currentRating) {
+      try {
+        const res = await fetch("https://codeforces.com/api/problemset.problems");
+        const data = await res.json();
+        if (data.status !== "OK") {
+          throw new Error(data.comment || "Error fetching problemset");
+        }
+        const problems = data.result.problems;
+        // Filter: Keep problems that have the given tag and a rating within [currentRating-200, currentRating+200]
+        const filtered = problems.filter(problem => {
+          return problem.tags && problem.tags.includes(tag) &&
+                 problem.rating &&
+                 problem.rating >= currentRating - 200 &&
+                 problem.rating <= currentRating + 200;
+        });
+        // Sort filtered problems descending by rating (so highest rated first)
+        filtered.sort((a, b) => b.rating - a.rating);
+        // Take top 5 suggestions.
+        const suggestions = filtered.slice(0, 10);
+        let html = `<h3 class="text-xl font-bold mb-2">Problem Suggestions for tag "${tag}" in rating range ${currentRating-200} to ${currentRating+200}</h3>`;
+        if (suggestions.length === 0) {
+          html += `<p>No high rated problems found for tag "${tag}" in your rating range.</p>`;
+        } else {
+          html += `<ul class="space-y-2">`;
+          suggestions.forEach(problem => {
+            const url = `https://codeforces.com/problemset/problem/${problem.contestId}/${problem.index}`;
+            html += `<li class="bg-gray-700 p-2 rounded">
+                       <a href="${url}" target="_blank" class="text-blue-400 hover:underline">
+                         ${problem.name} [${problem.contestId}${problem.index}]
+                       </a> (Rating: ${problem.rating})
+                     </li>`;
+          });
+          html += `</ul>`;
+        }
+        document.getElementById('mergedProblemSuggestions').innerHTML = html;
+      } catch (error) {
+        console.error(error);
+        document.getElementById('mergedProblemSuggestions').textContent = "Error fetching suggestions: " + error.message;
+      }
+    }
+    
+    // Event listeners for the Analyze button (on Enter key or click)
+    document.getElementById('handleInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        analyzeWrongAnswers();
+      }
+    });
+    document.querySelector('button[onclick="analyzeWrongAnswers()"]').addEventListener('click', analyzeWrongAnswers);
+    
+    // On load, if a user is logged in, auto-analyze
+    document.addEventListener('DOMContentLoaded', () => {
+      const storedUsername = localStorage.getItem('cf_username');
+      if (storedUsername) {
+        document.getElementById('handleInput').value = storedUsername;
+        analyzeWrongAnswers();
+      }
+    });
+  </script>
+</body>
+</html>

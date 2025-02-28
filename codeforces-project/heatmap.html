@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Codeforces Tracker - Profile & History</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Include Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Include D3 for heatmap visualization -->
+  <script type="text/javascript" src="d3.min.js"></script>
+  <style>
+    /* Custom styles from original CF Heatmap */
+    .calender-map {
+      shape-rendering: crispEdges;
+    }
+    .day {
+      stroke: #666;
+    }
+    .month {
+      fill: none;
+      stroke: #000;
+      stroke-width: 2px;
+    }
+    .tooltip {
+      height: 18px;
+      padding: 3px;
+      width: 160px;
+      background-color: black;
+      display: none;
+      color: white;
+      position: absolute;
+      font-size: 14px;
+      text-align: center;
+      opacity: 0.8;
+      border-radius: 4px;
+      transition: all 0.6s ease;
+    }
+    #loading-gif, #heatmap-loading-gif {
+      display: none;
+      transition: all 1s ease;
+    }
+    #stats, #heatmap-stats {
+      font-size: 10px;
+    }
+    form {
+      margin-bottom: 15px;
+    }
+    /* Adjusted for heatmap form */
+    #username-input, #heatmap-username-input {
+      width: 60%;
+      margin-left: 20%;
+      margin-bottom: 10px;
+    }
+    label {
+      font-size: 12px;
+    }
+    label:hover, input[type=radio] {
+      cursor: pointer;
+    }
+    #line-year {
+      position: relative;
+      margin-left: 10px;
+    }
+    /* Bootstrap-like form control */
+    .form-control {
+      display: block;
+      width: 100%;
+      height: 34px;
+      padding: 6px 12px;
+      font-size: 14px;
+      line-height: 1.42857143;
+      color: #555;
+      background-color: #fff;
+      background-image: none;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075);
+      transition: border-color ease-in-out .15s, box-shadow ease-in-out .15s;
+    }
+    .form-control:focus {
+      border-color: #66afe9;
+      outline: 0;
+      box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(102, 175, 233, .6);
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white">
+  <!-- Navigation Header -->
+  <header class="bg-gray-800 p-4 shadow-lg w-full">
+    <nav class="flex items-center">
+      <!-- Left: Website Name -->
+      <div>
+        <a href="index.html" class="text-2xl font-bold pl-4">HeckerBhai</a>
+      </div>
+      <!-- Right: Navigation Links -->
+      <div class="flex ml-auto items-center space-x-6 pr-4">
+        <a href="index.html" class="text-lg font-semibold hover:underline">HOME</a>
+        <a href="profile.html" class="text-lg font-semibold hover:underline">PROFILE</a>
+        <a href="submissions.html" class="text-lg font-semibold hover:underline">SUBMISSIONS</a>
+        <a href="contest_list.html" class="text-lg font-semibold hover:underline">CONTESTS</a>
+        <a href="problemset.html" class="text-lg font-semibold hover:underline">PROBLEMSET</a>
+        <a href="compare.html" class="text-lg font-semibold hover:underline">COMPARE</a>
+        <div id="auth-item">
+          <a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="max-w-4xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg">
+    <h1 class="text-3xl font-bold text-center mb-4">Codeforces Profile & Contest History</h1>
+    <p class="text-center text-gray-300 mb-6">
+      Enter a Codeforces username to view profile info, rating changes, and contest participation.
+    </p>
+    <!-- Input Section -->
+    <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
+      <input type="text" id="usernameInput" placeholder="Enter Codeforces username" class="p-2 w-64 rounded bg-gray-700 text-white" />
+      <button id="plotButton" class="bg-blue-500 px-4 py-2 rounded text-white hover:bg-blue-600">
+        Plot Profile & History
+      </button>
+    </div>
+    <p id="errorMessage" class="mt-4 text-center text-red-500"></p>
+    <!-- Profile Info Container -->
+    <div id="profileInfo" class="mt-6"></div>
+    <!-- Canvas for the Rating Graph -->
+    <canvas id="ratingChart" class="mt-6 w-full"></canvas>
+    
+    <!-- Heatmap Section (Inserted just before contests) -->
+    <section id="heatmap-section" class="mt-6">
+      <h2 class="text-3xl font-bold text-center mb-4">Codeforces Heatmap</h2>
+      <!-- Heatmap Form -->
+      <form role="form" class="mb-4">
+        <input type="text" id="heatmap-username-input" class="form-control" placeholder="Type existing Codeforces handle and press enter.." />
+        <div class="flex justify-center space-x-4 mt-2">
+          <label class="text-sm">
+            <input type="radio" class="participantTypeRadio" name="participantType" value="A" checked> All
+          </label>
+          <label class="text-sm">
+            <input type="radio" class="participantTypeRadio" name="participantType" value="C"> Contest
+          </label>
+          <label class="text-sm">
+            <input type="radio" class="participantTypeRadio" name="participantType" value="P"> Practice
+          </label>
+          <label class="text-sm">
+            <input type="radio" class="participantTypeRadio" name="participantType" value="V"> Virtual
+          </label>
+        </div>
+        <select name="line-year" id="line-year" class="mt-2"></select>
+      </form>
+      <!-- Heatmap Stats & Loading Indicator -->
+      <div id="heatmap-stats"></div>
+      <img id="heatmap-loading-gif" src="img/load.svg" alt="Loading" class="mx-auto">
+      <!-- Heatmap Visualization Container -->
+      <div id="heat-map-div" class="calender-map"></div>
+    </section>
+    
+    <!-- Contest List Container -->
+    <div id="contestList" class="mt-6"></div>
+  </main>
+
+  <script>
+    // Update header if a user is logged in
+    function updateHeader() {
+      const authItem = document.getElementById('auth-item');
+      const storedUsername = localStorage.getItem('cf_username');
+      if (storedUsername) {
+        authItem.innerHTML = `
+          <div class="relative">
+            <a href="#" id="auth-link" class="text-lg font-semibold hover:underline">${storedUsername} ▼</a>
+            <ul id="dropdown-menu" class="absolute right-0 mt-2 w-48 bg-gray-700 text-white shadow-lg rounded hidden">
+              <li class="border-b border-gray-600">
+                <a href="user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a>
+              </li>
+              <li class="border-b border-gray-600">
+                <a href="progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a>
+              </li>
+              <li>
+                <a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a>
+              </li>
+            </ul>
+          </div>
+        `;
+        document.getElementById('auth-link').addEventListener('click', function(e) {
+          e.preventDefault();
+          document.getElementById('dropdown-menu').classList.toggle('hidden');
+        });
+        document.getElementById('logout').addEventListener('click', function(e) {
+          e.preventDefault();
+          localStorage.removeItem('cf_username');
+          updateHeader();
+          window.location.href = "index.html";
+        });
+      } else {
+        authItem.innerHTML = `<a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>`;
+      }
+    }
+    document.addEventListener("DOMContentLoaded", updateHeader);
+
+    // --- Existing Profile & Contest History Functionality ---
+    // Fetch profile data using Codeforces API (user.info)
+    async function fetchProfileData(username) {
+      const apiUrl = `https://codeforces.com/api/user.info?handles=${username}`;
+      try {
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        if(data.status === 'OK') {
+          return data.result[0];
+        } else {
+          throw new Error(data.comment || 'API Error');
+        }
+      } catch (error) {
+        throw error;
+      }
+    }
+
+    // Fetch rating (contest) data using Codeforces API (user.rating)
+    async function fetchRatingData(username) {
+      const apiUrl = `https://codeforces.com/api/user.rating?handle=${username}`;
+      try {
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        if (data.status === 'OK') {
+          return data.result;
+        } else {
+          throw new Error(data.comment || 'API Error');
+        }
+      } catch (error) {
+        throw error;
+      }
+    }
+
+    // Display profile info at the top
+    function displayProfileInfo(profile) {
+      const profileInfoDiv = document.getElementById('profileInfo');
+      let html = `<div class="bg-gray-700 p-4 rounded-lg shadow flex items-center gap-4">
+                    ${profile.avatar && !profile.avatar.includes('no-avatar') ? `<img src="${profile.avatar}" alt="Avatar" class="w-16 h-16 rounded-full">` : ''}
+                    <div>
+                      <h2 class="text-2xl font-bold">${profile.handle}</h2>
+                      <p>Rank: <span class="font-semibold text-blue-400">${profile.rank || 'N/A'}</span></p>
+                      <p>Rating: <span class="font-semibold text-yellow-400">${profile.rating || 'N/A'}</span></p>
+                      <p>Max Rating: <span class="font-semibold text-red-400">${profile.maxRating || 'N/A'}</span></p>
+                      <p>Contribution: <span class="font-semibold text-green-400">${profile.contribution || 'N/A'}</span></p>
+                      <p>Friends Count: <span class="font-semibold text-purple-400">${profile.friendOfCount || 'N/A'}</span></p>
+                      <p>City: <span class="font-semibold text-gray-300">${profile.city || 'N/A'}</span></p>
+                      <p>Country: <span class="font-semibold text-gray-300">${profile.country || 'N/A'}</span></p>
+                      <p>Organization: <span class="font-semibold text-indigo-400">${profile.organization || 'N/A'}</span></p>
+                    </div>
+                  </div>`;
+      profileInfoDiv.innerHTML = html;
+    }
+
+    // Plot rating graph and display contest list
+    async function plotRatingGraphAndContests(username) {
+      const errorMessage = document.getElementById('errorMessage');
+      errorMessage.textContent = '';
+      try {
+        const ratingData = await fetchRatingData(username);
+        if (ratingData.length === 0) {
+          errorMessage.textContent = 'No rating data available for this user.';
+          return;
+        }
+        // Prepare data for the chart
+        const labels = ratingData.map(entry => {
+          const date = new Date(entry.ratingUpdateTimeSeconds * 1000);
+          return date.toLocaleDateString();
+        });
+        const ratings = ratingData.map(entry => entry.newRating);
+        const contestNames = ratingData.map(entry => entry.contestName);
+
+        // Destroy any existing chart instance to prevent overlay
+        if (window.ratingChartInstance) {
+          window.ratingChartInstance.destroy();
+        }
+        const ctx = document.getElementById('ratingChart').getContext('2d');
+        window.ratingChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Rating',
+              data: ratings,
+              fill: false,
+              borderColor: 'rgba(59, 130, 246, 1)', // Tailwind blue-500
+              backgroundColor: 'rgba(59, 130, 246, 0.5)',
+              tension: 0.1,
+              pointRadius: 5,
+              pointHoverRadius: 7
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  title: function(context) {
+                    const idx = context[0].dataIndex;
+                    return contestNames[idx];
+                  },
+                  label: function(context) {
+                    const idx = context.dataIndex;
+                    return 'Rating: ' + ratings[idx];
+                  },
+                  afterLabel: function(context) {
+                    const idx = context.dataIndex;
+                    return 'Date: ' + labels[idx];
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: 'Contest Date'
+                }
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: 'Rating'
+                },
+                beginAtZero: false
+              }
+            }
+          }
+        });
+
+        // Build contest history list
+        const contestListDiv = document.getElementById('contestList');
+        let contestListHtml = '<h2 class="text-2xl font-bold mb-4">Contest History</h2>';
+        contestListHtml += '<ul class="space-y-4">';
+        ratingData.forEach(entry => {
+          const contestDate = new Date(entry.ratingUpdateTimeSeconds * 1000).toLocaleDateString();
+          contestListHtml += `
+            <li class="p-4 bg-gray-700 rounded shadow">
+              <p><strong>Contest Name:</strong> ${entry.contestName} (ID: ${entry.contestId})</p>
+              <p><strong>Date:</strong> ${contestDate}</p>
+              <p><strong>Rank:</strong> ${entry.rank}</p>
+              <p><strong>Rating Change:</strong> ${entry.oldRating} → ${entry.newRating}</p>
+            </li>`;
+        });
+        contestListHtml += '</ul>';
+        contestListDiv.innerHTML = contestListHtml;
+      } catch (error) {
+        errorMessage.textContent = 'Error: ' + error.message;
+        console.error(error);
+      }
+    }
+
+    // Main function: fetch profile info, then rating data, then plot graph and contest history.
+    async function plotProfileAndHistory(username) {
+      try {
+        const profile = await fetchProfileData(username);
+        displayProfileInfo(profile);
+        plotRatingGraphAndContests(username);
+      } catch (error) {
+        document.getElementById('errorMessage').textContent = 'Error: ' + error.message;
+        console.error(error);
+      }
+    }
+
+    // Event listener for the Plot button
+    document.getElementById('plotButton').addEventListener('click', function() {
+      const username = document.getElementById('usernameInput').value.trim();
+      if (!username) {
+        document.getElementById('errorMessage').textContent = 'Please enter a Codeforces username.';
+        return;
+      }
+      plotProfileAndHistory(username);
+    });
+
+    // --- Heatmap Section Functionality ---
+    // (This section can be integrated with your existing heatmap logic. For example purposes,
+    // we assume similar functions for fetching and processing submission data exist in your external JS files.)
+    // You might want to add an event listener for the heatmap form here.
+    // Example:
+    // document.getElementById('heatmap-username-input').addEventListener('keypress', function(e) {
+    //   if(e.key === 'Enter') {
+    //     e.preventDefault();
+    //     // Call your heatmap plotting function here using the input value.
+    //   }
+    // });
+  </script>
+</body>
+</html>
