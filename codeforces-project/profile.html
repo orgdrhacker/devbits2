@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Codeforces Tracker - Profile & History</title>
+  <title>Codeforces Tracker - Profile & History with Heatmap & Pagination</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Include Chart.js from CDN -->
+  <!-- Chart.js for rating chart -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- D3 v6 for the heatmap -->
+  <script src="https://d3js.org/d3.v6.min.js"></script>
 </head>
 <body class="bg-gray-900 text-white">
   <!-- Navigation Header -->
@@ -35,26 +38,48 @@
   <main class="max-w-4xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg">
     <h1 class="text-3xl font-bold text-center mb-4">Codeforces Profile & Contest History</h1>
     <p class="text-center text-gray-300 mb-6">
-      Enter a Codeforces username to view profile info, rating changes, and contest participation.
+      Enter a Codeforces username to view profile info, rating changes, contest participation, and daily submission heatmap.
     </p>
+
     <!-- Input Section -->
     <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
-      <input type="text" id="usernameInput" placeholder="Enter Codeforces username" class="p-2 w-64 rounded bg-gray-700 text-white" />
-      <button id="plotButton" class="bg-blue-500 px-4 py-2 rounded text-white hover:bg-blue-600">
+      <input
+        type="text"
+        id="usernameInput"
+        placeholder="Enter Codeforces username"
+        class="p-2 w-64 rounded bg-gray-700 text-white"
+      />
+      <button
+        id="plotButton"
+        class="bg-blue-500 px-4 py-2 rounded text-white hover:bg-blue-600"
+      >
         Plot Profile & History
       </button>
     </div>
     <p id="errorMessage" class="mt-4 text-center text-red-500"></p>
+
     <!-- Profile Info Container -->
     <div id="profileInfo" class="mt-6"></div>
-    <!-- Canvas for the Rating Graph -->
+
+    <!-- Rating Graph -->
     <canvas id="ratingChart" class="mt-6 w-full"></canvas>
-    <!-- Contest List Container -->
+
+    <!-- Heatmap Section -->
+    <section id="heatmapSection" class="mt-6">
+      <h2 class="text-2xl font-bold mb-4">Submission Heatmap</h2>
+      <div id="heatmapError" class="text-red-500 text-center"></div>
+      <!-- Loading indicator for heatmap -->
+      <div id="heatmapLoading" class="text-center my-2 hidden">Loading heatmap...</div>
+      <!-- Container for the D3 calendar heatmap -->
+      <div id="heatmapContainer" class="mt-4 w-full"></div>
+    </section>
+
+    <!-- Contest List Container with Pagination -->
     <div id="contestList" class="mt-6"></div>
   </main>
 
   <script>
-    // Update header if a user is logged in
+    /* ----------------- HEADER AUTH ----------------- */
     function updateHeader() {
       const authItem = document.getElementById('auth-item');
       const storedUsername = localStorage.getItem('cf_username');
@@ -91,77 +116,65 @@
     }
     document.addEventListener("DOMContentLoaded", updateHeader);
 
-    // Fetch profile data using Codeforces API (user.info)
+    /* ----------------- PROFILE & RATING ----------------- */
     async function fetchProfileData(username) {
       const apiUrl = `https://codeforces.com/api/user.info?handles=${username}`;
-      try {
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-        if(data.status === 'OK') {
-          return data.result[0];
-        } else {
-          throw new Error(data.comment || 'API Error');
-        }
-      } catch (error) {
-        throw error;
-      }
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      if(data.status === 'OK') return data.result[0];
+      throw new Error(data.comment || 'API Error');
     }
 
-    // Fetch rating (contest) data using Codeforces API (user.rating)
     async function fetchRatingData(username) {
       const apiUrl = `https://codeforces.com/api/user.rating?handle=${username}`;
-      try {
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-        if (data.status === 'OK') {
-          return data.result;
-        } else {
-          throw new Error(data.comment || 'API Error');
-        }
-      } catch (error) {
-        throw error;
-      }
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      if (data.status === 'OK') return data.result;
+      throw new Error(data.comment || 'API Error');
     }
 
-    // Display profile info at the top
     function displayProfileInfo(profile) {
       const profileInfoDiv = document.getElementById('profileInfo');
       let html = `<div class="bg-gray-700 p-4 rounded-lg shadow flex items-center gap-4">
-                    ${profile.avatar && !profile.avatar.includes('no-avatar') ? `<img src="${profile.avatar}" alt="Avatar" class="w-16 h-16 rounded-full">` : ''}
-                    <div>
-                      <h2 class="text-2xl font-bold">${profile.handle}</h2>
-                      <p>Rank: <span class="font-semibold text-blue-400">${profile.rank || 'N/A'}</span></p>
-                      <p>Rating: <span class="font-semibold text-yellow-400">${profile.rating || 'N/A'}</span></p>
-                      <p>Max Rating: <span class="font-semibold text-red-400">${profile.maxRating || 'N/A'}</span></p>
-                      <p>Contribution: <span class="font-semibold text-green-400">${profile.contribution || 'N/A'}</span></p>
-                      <p>Friends Count: <span class="font-semibold text-purple-400">${profile.friendOfCount || 'N/A'}</span></p>
-                      <p>City: <span class="font-semibold text-gray-300">${profile.city || 'N/A'}</span></p>
-                      <p>Country: <span class="font-semibold text-gray-300">${profile.country || 'N/A'}</span></p>
-                      <p>Organization: <span class="font-semibold text-indigo-400">${profile.organization || 'N/A'}</span></p>
-                    </div>
-                  </div>`;
+        ${
+          profile.avatar && !profile.avatar.includes('no-avatar')
+            ? `<img src="${profile.avatar}" alt="Avatar" class="w-16 h-16 rounded-full">`
+            : ''
+        }
+        <div>
+          <h2 class="text-2xl font-bold">${profile.handle}</h2>
+          <p>Rank: <span class="font-semibold text-blue-400">${profile.rank || 'N/A'}</span></p>
+          <p>Rating: <span class="font-semibold text-yellow-400">${profile.rating || 'N/A'}</span></p>
+          <p>Max Rating: <span class="font-semibold text-red-400">${profile.maxRating || 'N/A'}</span></p>
+          <p>Contribution: <span class="font-semibold text-green-400">${profile.contribution || 'N/A'}</span></p>
+          <p>Friends Count: <span class="font-semibold text-purple-400">${profile.friendOfCount || 'N/A'}</span></p>
+          <p>City: <span class="font-semibold text-gray-300">${profile.city || 'N/A'}</span></p>
+          <p>Country: <span class="font-semibold text-gray-300">${profile.country || 'N/A'}</span></p>
+          <p>Organization: <span class="font-semibold text-indigo-400">${profile.organization || 'N/A'}</span></p>
+        </div>
+      </div>`;
       profileInfoDiv.innerHTML = html;
     }
 
-    // Plot rating graph and display contest list
     async function plotRatingGraphAndContests(username) {
       const errorMessage = document.getElementById('errorMessage');
       errorMessage.textContent = '';
       try {
         const ratingData = await fetchRatingData(username);
-        if (ratingData.length === 0) {
+        if (!ratingData.length) {
           errorMessage.textContent = 'No rating data available for this user.';
           return;
         }
-        // Prepare data for the chart
-        const labels = ratingData.map(entry => {
-          const date = new Date(entry.ratingUpdateTimeSeconds * 1000);
-          return date.toLocaleDateString();
-        });
+        // Sort ratingData chronologically (oldest to newest) for chart
+        ratingData.sort((a, b) => a.ratingUpdateTimeSeconds - b.ratingUpdateTimeSeconds);
+
+        const labels = ratingData.map(entry =>
+          new Date(entry.ratingUpdateTimeSeconds * 1000).toLocaleDateString()
+        );
         const ratings = ratingData.map(entry => entry.newRating);
         const contestNames = ratingData.map(entry => entry.contestName);
 
-        // Destroy any existing chart instance to prevent overlay
+        // Create rating chart
         if (window.ratingChartInstance) {
           window.ratingChartInstance.destroy();
         }
@@ -170,90 +183,226 @@
           type: 'line',
           data: {
             labels: labels,
-            datasets: [{
-              label: 'Rating',
-              data: ratings,
-              fill: false,
-              borderColor: 'rgba(59, 130, 246, 1)', // Tailwind blue-500
-              backgroundColor: 'rgba(59, 130, 246, 0.5)',
-              tension: 0.1,
-              pointRadius: 5,
-              pointHoverRadius: 7
-            }]
+            datasets: [
+              {
+                label: 'Rating',
+                data: ratings,
+                fill: false,
+                borderColor: 'rgba(59, 130, 246, 1)',
+                backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                tension: 0.1,
+                pointRadius: 5,
+                pointHoverRadius: 7
+              }
+            ]
           },
           options: {
             responsive: true,
             plugins: {
               tooltip: {
                 callbacks: {
-                  title: function(context) {
-                    const idx = context[0].dataIndex;
-                    return contestNames[idx];
-                  },
-                  label: function(context) {
-                    const idx = context.dataIndex;
-                    return 'Rating: ' + ratings[idx];
-                  },
-                  afterLabel: function(context) {
-                    const idx = context.dataIndex;
-                    return 'Date: ' + labels[idx];
-                  }
+                  title: context => contestNames[context[0].dataIndex],
+                  label: context => 'Rating: ' + ratings[context.dataIndex],
+                  afterLabel: context => 'Date: ' + labels[context.dataIndex]
                 }
               }
             },
             scales: {
               x: {
-                title: {
-                  display: true,
-                  text: 'Contest Date'
-                }
+                title: { display: true, text: 'Contest Date' }
               },
               y: {
-                title: {
-                  display: true,
-                  text: 'Rating'
-                },
+                title: { display: true, text: 'Rating' },
                 beginAtZero: false
               }
             }
           }
         });
 
-        // Build contest history list
-        const contestListDiv = document.getElementById('contestList');
-        let contestListHtml = '<h2 class="text-2xl font-bold mb-4">Contest History</h2>';
-        contestListHtml += '<ul class="space-y-4">';
-        ratingData.forEach(entry => {
-          const contestDate = new Date(entry.ratingUpdateTimeSeconds * 1000).toLocaleDateString();
-          contestListHtml += `
-            <li class="p-4 bg-gray-700 rounded shadow">
-              <p><strong>Contest Name:</strong> ${entry.contestName} (ID: ${entry.contestId})</p>
-              <p><strong>Date:</strong> ${contestDate}</p>
-              <p><strong>Rank:</strong> ${entry.rank}</p>
-              <p><strong>Rating Change:</strong> ${entry.oldRating} → ${entry.newRating}</p>
-            </li>`;
-        });
-        contestListHtml += '</ul>';
-        contestListDiv.innerHTML = contestListHtml;
+        // Build contest history list with pagination
+        // Reverse the ratingData so that newest contests come first.
+        const reversedData = [...ratingData].reverse();
+        // Save contest data globally for pagination
+        window.contestData = reversedData;
+        window.currentContestPage = 0;
+        renderContestList();
+
       } catch (error) {
         errorMessage.textContent = 'Error: ' + error.message;
         console.error(error);
       }
     }
 
-    // Main function: fetch profile info, then rating data, then plot graph and contest history.
+    // Render the contest list for the current page
+    function renderContestList() {
+      const contestsPerPage = 5;
+      const page = window.currentContestPage;
+      const startIndex = page * contestsPerPage;
+      const endIndex = startIndex + contestsPerPage;
+      const pageData = window.contestData.slice(startIndex, endIndex);
+      
+      let html = '<h2 class="text-2xl font-bold mb-4">Contest History</h2>';
+      html += '<ul class="space-y-4">';
+      pageData.forEach(entry => {
+        const contestDate = new Date(entry.ratingUpdateTimeSeconds * 1000).toLocaleDateString();
+        html += `
+          <li class="p-4 bg-gray-700 rounded shadow">
+            <p><strong>Contest Name:</strong> ${entry.contestName} (ID: ${entry.contestId})</p>
+            <p><strong>Date:</strong> ${contestDate}</p>
+            <p><strong>Rank:</strong> ${entry.rank}</p>
+            <p><strong>Rating Change:</strong> ${entry.oldRating} → ${entry.newRating}</p>
+          </li>`;
+      });
+      html += '</ul>';
+      
+      // Pagination Controls
+      html += '<div class="flex justify-center mt-4 space-x-4">';
+      if (page > 0) {
+        html += '<button id="prevPage" class="bg-blue-500 px-4 py-2 rounded text-white hover:bg-blue-600">Previous</button>';
+      }
+      if (endIndex < window.contestData.length) {
+        html += '<button id="nextPage" class="bg-blue-500 px-4 py-2 rounded text-white hover:bg-blue-600">Next</button>';
+      }
+      html += '</div>';
+      
+      document.getElementById('contestList').innerHTML = html;
+      attachPaginationEvents();
+    }
+
+    // Attach event listeners to pagination buttons
+    function attachPaginationEvents() {
+      const prevButton = document.getElementById('prevPage');
+      if (prevButton) {
+        prevButton.addEventListener('click', () => {
+          window.currentContestPage--;
+          renderContestList();
+        });
+      }
+      const nextButton = document.getElementById('nextPage');
+      if (nextButton) {
+        nextButton.addEventListener('click', () => {
+          window.currentContestPage++;
+          renderContestList();
+        });
+      }
+    }
+
     async function plotProfileAndHistory(username) {
       try {
         const profile = await fetchProfileData(username);
         displayProfileInfo(profile);
-        plotRatingGraphAndContests(username);
+        await plotRatingGraphAndContests(username);
+        // Generate the calendar heatmap after rating data is plotted
+        generateCalendarHeatmap(username);
       } catch (error) {
         document.getElementById('errorMessage').textContent = 'Error: ' + error.message;
         console.error(error);
       }
     }
 
-    // Event listener for the Plot button
+    /* ----------------- CALENDAR HEATMAP (Full Width) ----------------- */
+    async function generateCalendarHeatmap(username) {
+      const heatmapError = document.getElementById('heatmapError');
+      const heatmapLoading = document.getElementById('heatmapLoading');
+      const heatmapContainer = document.getElementById('heatmapContainer');
+
+      heatmapError.textContent = '';
+      heatmapContainer.innerHTML = '';
+      heatmapLoading.classList.remove('hidden');
+
+      try {
+        // 1) Fetch user submissions
+        const url = `https://codeforces.com/api/user.status?handle=${username}&count=10000`;
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.status !== 'OK') {
+          throw new Error(data.comment || 'Heatmap API Error');
+        }
+        const submissions = data.result;
+        if (!submissions.length) {
+          heatmapError.textContent = `No submissions found for "${username}".`;
+          return;
+        }
+
+        // 2) Tally daily submission counts
+        const counts = {};
+        submissions.forEach(sub => {
+          const dayStart = d3.timeDay.floor(new Date(sub.creationTimeSeconds * 1000));
+          const key = +dayStart;
+          counts[key] = (counts[key] || 0) + 1;
+        });
+
+        // Convert to array for easier sorting
+        let dataArray = Object.keys(counts).map(k => ({
+          date: new Date(+k),
+          count: counts[k]
+        }));
+        dataArray.sort((a, b) => a.date - b.date);
+
+        // 3) Build a "day by day" array from earliest to latest date
+        const minDate = dataArray[0].date;
+        const maxDate = dataArray[dataArray.length - 1].date;
+        const fullData = [];
+        let current = new Date(minDate);
+        while (current <= maxDate) {
+          const key = +current;
+          fullData.push({
+            date: new Date(current),
+            count: counts[key] || 0
+          });
+          current = d3.timeDay.offset(current, 1);
+        }
+
+        // 4) Calculate weeks spanned and set cellSize to fill container width
+        const margin = { top: 20, right: 20, bottom: 20, left: 20 };
+        const firstWeek = d3.timeWeek.count(d3.timeWeek.floor(minDate), minDate);
+        const lastWeek = d3.timeWeek.count(d3.timeWeek.floor(minDate), maxDate) + 1;
+        const numWeeks = lastWeek - firstWeek + 1;
+
+        const containerWidth = heatmapContainer.clientWidth || 600;
+        const cellSize = (containerWidth - margin.left - margin.right) / numWeeks;
+        const width = margin.left + margin.right + numWeeks * cellSize;
+        const height = margin.top + margin.bottom + 7 * cellSize;
+
+        // 5) Create SVG heatmap
+        const svg = d3.select(heatmapContainer)
+          .append('svg')
+          .attr('width', width)
+          .attr('height', height);
+
+        const g = svg.append('g')
+          .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // Color scale
+        const maxCount = d3.max(fullData, d => d.count);
+        const colorScale = d3.scaleLinear()
+          .domain([0, maxCount])
+          .range(['#eeeeee', '#003366']);
+
+        // 6) Plot each day by week and day-of-week
+        g.selectAll('rect')
+          .data(fullData)
+          .enter()
+          .append('rect')
+          .attr('x', d => {
+            const weekIndex = d3.timeWeek.count(d3.timeWeek.floor(minDate), d.date);
+            return (weekIndex - firstWeek) * cellSize;
+          })
+          .attr('y', d => d.date.getDay() * cellSize)
+          .attr('width', cellSize - 2)
+          .attr('height', cellSize - 2)
+          .attr('fill', d => colorScale(d.count))
+          .append('title')
+          .text(d => `${d.date.toLocaleDateString()}: ${d.count} submissions`);
+      } catch (err) {
+        console.error(err);
+        heatmapError.textContent = 'Heatmap Error: ' + err.message;
+      } finally {
+        heatmapLoading.classList.add('hidden');
+      }
+    }
+
+    /* ----------------- EVENT LISTENERS ----------------- */
     document.getElementById('plotButton').addEventListener('click', function() {
       const username = document.getElementById('usernameInput').value.trim();
       if (!username) {
@@ -261,6 +410,15 @@
         return;
       }
       plotProfileAndHistory(username);
+    });
+
+    // On load, if user is logged in, auto-plot everything
+    document.addEventListener('DOMContentLoaded', () => {
+      const storedUsername = localStorage.getItem('cf_username');
+      if (storedUsername) {
+        document.getElementById('usernameInput').value = storedUsername;
+        plotProfileAndHistory(storedUsername);
+      }
     });
   </script>
 </body>
