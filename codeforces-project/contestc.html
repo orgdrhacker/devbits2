@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en" class="bg-gray-900">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contest Room</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 min-h-screen text-white">
+  <!-- Navigation Header -->
+  <header class="bg-gray-800 p-4 shadow-lg w-full">
+    <nav class="flex items-center">
+      <!-- Left: Website Name -->
+      <div>
+        <a href="index.html" class="text-2xl font-bold pl-4">HeckerBhai</a>
+      </div>
+      <!-- Navigation Links and Timer -->
+      <div class="flex ml-auto items-center space-x-6 pr-4">
+        <a href="index.html" class="text-lg font-semibold hover:underline">HOME</a>
+        <a href="profile.html" class="text-lg font-semibold hover:underline">PROFILE</a>
+        <a href="submissions.html" class="text-lg font-semibold hover:underline">SUBMISSIONS</a>
+        <a href="contest_list.html" class="text-lg font-semibold hover:underline">CONTESTS</a>
+        <a href="problemset.html" class="text-lg font-semibold hover:underline">PROBLEMSET</a>
+        <a href="compare.html" class="text-lg font-semibold hover:underline">COMPARE</a>
+        <div id="auth-item">
+          <a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>
+        </div>
+        <!-- Timer placed as a flex item -->
+        <div id="timer" class="text-lg font-semibold ml-4"></div>
+      </div>
+    </nav>
+  </header>
+  
+  <!-- Main Content Container -->
+  <main class="max-w-4xl mx-auto mt-8 bg-gray-800 p-6 rounded-lg shadow-lg">
+    <h1 class="text-3xl font-bold text-center mb-4">Contest Room</h1>
+    <p class="text-center text-gray-300 mb-6">
+      Below are the problems selected for this contest room. You can now start practicing by solving these problems.
+    </p>
+    
+    <div id="contestProblems" class="space-y-4"></div>
+    
+    <!-- Start Contest Button -->
+    <div class="flex justify-center mt-6">
+      <button id="startContestBtn" class="bg-green-600 px-6 py-2 rounded text-white hover:bg-green-700">Start Contest</button>
+    </div>
+  </main>
+  
+  <script>
+    // Timer Functionality: Countdown from 2 hours
+    function startTimer(duration, display) {
+      let timer = duration, hours, minutes, seconds;
+      setInterval(function() {
+        hours = parseInt(timer / 3600, 10);
+        minutes = parseInt((timer % 3600) / 60, 10);
+        seconds = parseInt(timer % 60, 10);
+        
+        hours = hours < 10 ? "0" + hours : hours;
+        minutes = minutes < 10 ? "0" + minutes : minutes;
+        seconds = seconds < 10 ? "0" + seconds : seconds;
+        
+        display.textContent = hours + ":" + minutes + ":" + seconds;
+        
+        if (--timer < 0) {
+          timer = 0;
+        }
+      }, 1000);
+    }
+    
+    document.addEventListener("DOMContentLoaded", function() {
+      const twoHoursInSeconds = 2 * 60 * 60; // 2 hours
+      const timerDisplay = document.getElementById('timer');
+      startTimer(twoHoursInSeconds, timerDisplay);
+    });
+    
+    // Contest Room: load selected problems from localStorage
+    function loadContestRoom() {
+      const contestData = localStorage.getItem("contestRoomProblems");
+      const contestProblemsDiv = document.getElementById("contestProblems");
+      if (!contestData) {
+        contestProblemsDiv.innerHTML = "<p>No contest problems found. Please create a contest room from the problemset page.</p>";
+        return;
+      }
+      const problems = JSON.parse(contestData);
+      let html = "";
+      problems.forEach(problem => {
+        const url = `https://codeforces.com/problemset/problem/${problem.contestId}/${problem.index}`;
+        html += `<div class="bg-gray-700 p-4 rounded shadow">
+                   <a href="${url}" target="_blank" class="text-blue-400 hover:underline">
+                     Problem: ${problem.contestId} ${problem.index}
+                   </a>
+                 </div>`;
+      });
+      contestProblemsDiv.innerHTML = html;
+    }
+    
+    document.getElementById("startContestBtn").addEventListener("click", function() {
+      alert("Contest started! Solve the problems and submit your solutions.");
+    });
+    
+    document.addEventListener("DOMContentLoaded", loadContestRoom);
+    
+    // Update header (if not already updated)
+    function updateHeader() {
+      const authItem = document.getElementById('auth-item');
+      const storedUsername = localStorage.getItem('cf_username');
+      if (storedUsername) {
+        authItem.innerHTML = `
+          <div class="relative">
+            <a href="#" id="auth-link" class="text-lg font-semibold hover:underline">${storedUsername} ▼</a>
+            <ul id="dropdown-menu" class="absolute right-0 mt-2 w-48 bg-gray-700 text-white shadow-lg rounded hidden">
+              <li class="border-b border-gray-600"><a href="user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a></li>
+              <li class="border-b border-gray-600"><a href="progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a></li>
+              <li><a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a></li>
+            </ul>
+          </div>
+        `;
+        document.getElementById('auth-link').addEventListener('click', function(e) {
+          e.preventDefault();
+          document.getElementById('dropdown-menu').classList.toggle('hidden');
+        });
+        document.getElementById('logout').addEventListener('click', function(e) {
+          e.preventDefault();
+          localStorage.removeItem('cf_username');
+          updateHeader();
+          window.location.href = "index.html";
+        });
+      }
+    }
+    document.addEventListener("DOMContentLoaded", updateHeader);
+  </script>
+</body>
+</html>
