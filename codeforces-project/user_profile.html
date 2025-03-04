@@ -1,12 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>User Profile - Codeforces Tracker</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for rating graph -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- D3 v6 for the heatmap -->
+  <script src="https://d3js.org/d3.v6.min.js"></script>
 </head>
 <body class="bg-gray-900 text-white">
+  <!-- Navigation Header -->
   <header class="bg-gray-800 p-4 shadow-lg w-full">
     <nav class="flex items-center">
       <!-- Left: Website Name -->
@@ -31,11 +37,40 @@
   <!-- Main Content Container -->
   <div class="max-w-4xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg">
     <h1 class="text-3xl font-bold text-center mb-6">Your Profile</h1>
-    <div id="userInfo" class="text-center"></div>
+    <!-- User Info Section -->
+    <div id="userInfo" class="text-center mb-8"></div>
+
+    <!-- Rating Chart -->
+    <canvas id="ratingChart" class="mt-6 w-full"></canvas>
+
+    <!-- Submission Heatmap Section -->
+    <section id="heatmapSection" class="mt-6">
+      <h2 class="text-2xl font-bold mb-4">Submission Heatmap</h2>
+      <div id="heatmapError" class="text-red-500 text-center"></div>
+      <!-- Loading indicator for heatmap -->
+      <div id="heatmapLoading" class="text-center my-2 hidden">Loading heatmap...</div>
+      <!-- Container for the D3 calendar heatmap -->
+      <div id="heatmapContainer" class="mt-4 w-full"></div>
+    </section>
+
+    <!-- Contest History Section with Pagination -->
+    <div id="contestList" class="mt-6"></div>
+  </div>
+
+  <!-- Friend Modal (Optional) -->
+  <div id="friend-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center">
+    <div class="bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full">
+      <h2 class="text-xl font-bold mb-4">Add a Friend</h2>
+      <input type="text" id="friend-username" placeholder="Enter Codeforces handle" class="w-full p-2 mb-4 bg-gray-700 border border-gray-600 rounded">
+      <button onclick="addFriend()" class="w-full bg-blue-500 hover:bg-blue-600 p-2 rounded">Add Friend</button>
+      <h3 class="text-lg font-semibold mt-4">Friend List</h3>
+      <ul id="friend-list" class="mt-2"></ul>
+      <button onclick="document.getElementById('friend-modal').classList.add('hidden')" class="mt-4 w-full bg-red-500 hover:bg-red-600 p-2 rounded">Close</button>
+    </div>
   </div>
 
   <script>
-    // Update header function (same as in other pages)
+    /* ----------------- HEADER & AUTH ----------------- */
     function updateHeader() {
       const authItem = document.getElementById('auth-item');
       const storedUsername = localStorage.getItem('cf_username');
@@ -44,9 +79,15 @@
           <div class="relative">
             <a href="#" id="auth-link" class="text-lg font-semibold hover:underline">${storedUsername} ▼</a>
             <ul id="dropdown-menu" class="absolute right-0 mt-2 w-48 bg-gray-700 text-white shadow-lg rounded hidden">
-              <li class="border-b border-gray-600"><a href="user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a></li>
-              <li class="border-b border-gray-600"><a href="progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a></li>
-              <li><a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a></li>
+              <li class="border-b border-gray-600">
+                <a href="user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a>
+              </li>
+              <li class="border-b border-gray-600">
+                <a href="progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a>
+              </li>
+              <li>
+                <a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a>
+              </li>
             </ul>
           </div>
         `;
@@ -66,38 +107,286 @@
     }
     document.addEventListener("DOMContentLoaded", updateHeader);
 
-    // Ensure user is logged in; if not, redirect to login page.
+    // Ensure user is logged in; if not, redirect to login.
     const username = localStorage.getItem('cf_username');
     if (!username) {
       window.location.href = "login.html";
-    } else {
-      // Fetch user info from Codeforces API directly.
-      fetch(`https://codeforces.com/api/user.info?handles=${username}`)
+    }
+
+    /* ----------------- FETCH & DISPLAY USER INFO ----------------- */
+    fetch(`https://codeforces.com/api/user.info?handles=${username}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === "OK") {
+          const user = data.result[0];
+          document.getElementById('userInfo').innerHTML = `
+            ${user.avatar && !user.avatar.includes('no-avatar') 
+              ? `<img src="${user.avatar}" alt="Avatar" class="w-24 h-24 rounded-full mx-auto mb-4">`
+              : ''}
+            <h2 class="text-2xl font-bold">${user.handle}</h2>
+            <p>Rank: <span class="font-semibold text-blue-400">${user.rank || 'N/A'}</span></p>
+            <p>Rating: <span class="font-semibold text-yellow-400">${user.rating || 'N/A'}</span></p>
+            <p>Max Rating: <span class="font-semibold text-red-400">${user.maxRating || 'N/A'}</span></p>
+            <p>Contribution: <span class="font-semibold text-green-400">${user.contribution || 'N/A'}</span></p>
+            <p>Friends Count: <span class="font-semibold text-purple-400">${user.friendOfCount || 'N/A'}</span></p>
+            <p>City: <span class="font-semibold text-gray-300">${user.city || 'N/A'}</span></p>
+            <p>Country: <span class="font-semibold text-gray-300">${user.country || 'N/A'}</span></p>
+            <p>Organization: <span class="font-semibold text-indigo-400">${user.organization || 'N/A'}</span></p>
+          `;
+          // Once user info is loaded, plot profile history.
+          plotProfileAndHistory(username);
+        } else {
+          document.getElementById('userInfo').innerHTML = `<p class="text-red-400">Error fetching user info.</p>`;
+        }
+      })
+      .catch(error => {
+        document.getElementById('userInfo').innerHTML = `<p class="text-red-400">Failed to fetch user info.</p>`;
+      });
+
+    /* ----------------- RATING GRAPH & CONTEST HISTORY ----------------- */
+    async function fetchRatingData(username) {
+      const apiUrl = `https://codeforces.com/api/user.rating?handle=${username}`;
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      if (data.status === 'OK') return data.result;
+      throw new Error(data.comment || 'API Error');
+    }
+
+    function plotRatingGraphAndContests(username) {
+      fetchRatingData(username)
+        .then(ratingData => {
+          if (!ratingData.length) return;
+          ratingData.sort((a, b) => a.ratingUpdateTimeSeconds - b.ratingUpdateTimeSeconds);
+          const labels = ratingData.map(entry => new Date(entry.ratingUpdateTimeSeconds * 1000).toLocaleDateString());
+          const ratings = ratingData.map(entry => entry.newRating);
+          const contestNames = ratingData.map(entry => entry.contestName);
+          if (window.ratingChartInstance) {
+            window.ratingChartInstance.destroy();
+          }
+          const ctx = document.getElementById('ratingChart').getContext('2d');
+          window.ratingChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: 'Rating',
+                data: ratings,
+                fill: false,
+                borderColor: 'rgba(59, 130, 246, 1)',
+                backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                tension: 0.1,
+                pointRadius: 5,
+                pointHoverRadius: 7
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                tooltip: {
+                  callbacks: {
+                    title: context => contestNames[context[0].dataIndex],
+                    label: context => 'Rating: ' + ratings[context.dataIndex],
+                    afterLabel: context => 'Date: ' + labels[context.dataIndex]
+                  }
+                }
+              },
+              scales: {
+                x: { title: { display: true, text: 'Contest Date' } },
+                y: { title: { display: true, text: 'Rating' }, beginAtZero: false }
+              }
+            }
+          });
+          // Save contest data for history display
+          const reversedData = [...ratingData].reverse();
+          window.contestData = reversedData;
+          window.currentContestPage = 0;
+          renderContestList();
+        })
+        .catch(err => {
+          console.error(err);
+        });
+    }
+
+    function renderContestList() {
+      const contestsPerPage = 5;
+      const page = window.currentContestPage;
+      const startIndex = page * contestsPerPage;
+      const endIndex = startIndex + contestsPerPage;
+      const pageData = window.contestData.slice(startIndex, endIndex);
+      let html = '<h2 class="text-2xl font-bold mb-4">Contest History</h2>';
+      html += '<ul class="space-y-4">';
+      pageData.forEach(entry => {
+        const contestDate = new Date(entry.ratingUpdateTimeSeconds * 1000).toLocaleDateString();
+        html += `
+          <li class="p-4 bg-gray-700 rounded shadow">
+            <p><strong>Contest Name:</strong> ${entry.contestName} (ID: ${entry.contestId})</p>
+            <p><strong>Date:</strong> ${contestDate}</p>
+            <p><strong>Rank:</strong> ${entry.rank}</p>
+            <p><strong>Rating Change:</strong> ${entry.oldRating} → ${entry.newRating}</p>
+          </li>`;
+      });
+      html += '</ul>';
+      html += '<div class="flex justify-center mt-4 space-x-4">';
+      if (page > 0) {
+        html += '<button id="prevPage" class="bg-blue-500 px-4 py-2 rounded text-white hover:bg-blue-600">Previous</button>';
+      }
+      if (endIndex < window.contestData.length) {
+        html += '<button id="nextPage" class="bg-blue-500 px-4 py-2 rounded text-white hover:bg-blue-600">Next</button>';
+      }
+      html += '</div>';
+      document.getElementById('contestList').innerHTML = html;
+      attachPaginationEvents();
+    }
+
+    function attachPaginationEvents() {
+      const prevButton = document.getElementById('prevPage');
+      if (prevButton) {
+        prevButton.addEventListener('click', () => {
+          window.currentContestPage--;
+          renderContestList();
+        });
+      }
+      const nextButton = document.getElementById('nextPage');
+      if (nextButton) {
+        nextButton.addEventListener('click', () => {
+          window.currentContestPage++;
+          renderContestList();
+        });
+      }
+    }
+
+    function plotProfileAndHistory(username) {
+      plotRatingGraphAndContests(username);
+      generateCalendarHeatmap(username);
+    }
+
+    /* ----------------- HEATMAP (Using D3 v6) ----------------- */
+    async function generateCalendarHeatmap(username) {
+      const heatmapError = document.getElementById('heatmapError');
+      const heatmapLoading = document.getElementById('heatmapLoading');
+      const heatmapContainer = document.getElementById('heatmapContainer');
+      heatmapError.textContent = '';
+      heatmapContainer.innerHTML = '';
+      heatmapLoading.classList.remove('hidden');
+      try {
+        const url = `https://codeforces.com/api/user.status?handle=${username}&count=10000`;
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.status !== 'OK') {
+          throw new Error(data.comment || 'Heatmap API Error');
+        }
+        const submissions = data.result;
+        if (!submissions.length) {
+          heatmapError.textContent = `No submissions found for "${username}".`;
+          return;
+        }
+        const counts = {};
+        submissions.forEach(sub => {
+          const dayStart = d3.timeDay.floor(new Date(sub.creationTimeSeconds * 1000));
+          const key = +dayStart;
+          counts[key] = (counts[key] || 0) + 1;
+        });
+        let dataArray = Object.keys(counts).map(k => ({
+          date: new Date(+k),
+          count: counts[k]
+        }));
+        dataArray.sort((a, b) => a.date - b.date);
+        const minDate = dataArray[0].date;
+        const maxDate = dataArray[dataArray.length - 1].date;
+        const fullData = [];
+        let current = new Date(minDate);
+        while (current <= maxDate) {
+          const key = +current;
+          fullData.push({
+            date: new Date(current),
+            count: counts[key] || 0
+          });
+          current = d3.timeDay.offset(current, 1);
+        }
+        const margin = { top: 20, right: 20, bottom: 20, left: 20 };
+        const firstWeek = d3.timeWeek.count(d3.timeWeek.floor(minDate), minDate);
+        const lastWeek = d3.timeWeek.count(d3.timeWeek.floor(minDate), maxDate) + 1;
+        const numWeeks = lastWeek - firstWeek + 1;
+        const containerWidth = heatmapContainer.clientWidth || 600;
+        const cellSize = (containerWidth - margin.left - margin.right) / numWeeks;
+        const width = margin.left + margin.right + numWeeks * cellSize;
+        const height = margin.top + margin.bottom + 7 * cellSize;
+        const svg = d3.select(heatmapContainer)
+          .append('svg')
+          .attr('width', width)
+          .attr('height', height);
+        const g = svg.append('g')
+          .attr('transform', `translate(${margin.left},${margin.top})`);
+        const maxCount = d3.max(fullData, d => d.count);
+        const colorScale = d3.scaleLinear()
+          .domain([0, maxCount])
+          .range(['#eeeeee', '#003366']);
+        g.selectAll('rect')
+          .data(fullData)
+          .enter()
+          .append('rect')
+          .attr('x', d => {
+            const weekIndex = d3.timeWeek.count(d3.timeWeek.floor(minDate), d.date);
+            return (weekIndex - firstWeek) * cellSize;
+          })
+          .attr('y', d => d.date.getDay() * cellSize)
+          .attr('width', cellSize - 2)
+          .attr('height', cellSize - 2)
+          .attr('fill', d => colorScale(d.count))
+          .append('title')
+          .text(d => `${d.date.toLocaleDateString()}: ${d.count} submissions`);
+      } catch (err) {
+        console.error(err);
+        heatmapError.textContent = 'Heatmap Error: ' + err.message;
+      } finally {
+        heatmapLoading.classList.add('hidden');
+      }
+    }
+
+    /* ----------------- FRIEND FUNCTIONS (Optional) ----------------- */
+    function addFriend() {
+      const friendUsername = document.getElementById('friend-username').value.trim();
+      if (!friendUsername) {
+        alert("Please enter a valid Codeforces handle.");
+        return;
+      }
+      fetch(`https://codeforces.com/api/user.info?handles=${friendUsername}`)
         .then(response => response.json())
         .then(data => {
           if (data.status === "OK") {
-            const user = data.result[0];
-            document.getElementById('userInfo').innerHTML = `
-              ${user.avatar && !user.avatar.includes('no-avatar') 
-                ? `<img src="${user.avatar}" alt="Avatar" class="w-24 h-24 rounded-full mx-auto mb-4">`
-                : ''}\n
-              <h2 class="text-2xl font-bold">${user.handle}</h2>\n
-              <p>Rank: <span class="font-semibold text-blue-400">${user.rank || 'N/A'}</span></p>\n
-              <p>Rating: <span class="font-semibold text-yellow-400">${user.rating || 'N/A'}</span></p>\n
-              <p>Max Rating: <span class="font-semibold text-red-400">${user.maxRating || 'N/A'}</span></p>\n
-              <p>Contribution: <span class="font-semibold text-green-400">${user.contribution || 'N/A'}</span></p>\n
-              <p>Friends Count: <span class="font-semibold text-purple-400">${user.friendOfCount || 'N/A'}</span></p>\n
-              <p>City: <span class="font-semibold text-gray-300">${user.city || 'N/A'}</span></p>\n
-              <p>Country: <span class="font-semibold text-gray-300">${user.country || 'N/A'}</span></p>\n
-              <p>Organization: <span class="font-semibold text-indigo-400">${user.organization || 'N/A'}</span></p>\n
-            `;
+            let friends = JSON.parse(localStorage.getItem('cf_friends')) || [];
+            if (!friends.includes(friendUsername)) {
+              friends.push(friendUsername);
+              localStorage.setItem('cf_friends', JSON.stringify(friends));
+              updateFriendList();
+              alert("Friend added successfully!");
+            } else {
+              alert("This friend is already added.");
+            }
           } else {
-            document.getElementById('userInfo').innerHTML = `<p class="text-red-400">Error fetching user info.</p>`;
+            alert("Invalid Codeforces handle. Please try again.");
           }
         })
         .catch(error => {
-          document.getElementById('userInfo').innerHTML = `<p class="text-red-400">Failed to fetch user info.</p>`;
+          console.error("Error contacting Codeforces API:", error);
+          alert("Error contacting Codeforces API. Please try again later.");
         });
+    }
+
+    function updateFriendList() {
+      const friendList = document.getElementById('friend-list');
+      friendList.innerHTML = "";
+      let friends = JSON.parse(localStorage.getItem('cf_friends')) || [];
+      if (friends.length === 0) {
+        friendList.innerHTML = "<li class='text-gray-400'>No friends added yet.</li>";
+      } else {
+        friends.forEach(friend => {
+          let li = document.createElement('li');
+          li.textContent = friend;
+          li.className = "px-4 py-2 bg-gray-700 rounded mb-2";
+          friendList.appendChild(li);
+        });
+      }
     }
   </script>
 </body>

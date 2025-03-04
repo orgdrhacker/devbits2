@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-900 text-white">
+  <!-- Navigation Header -->
   <header class="bg-gray-800 p-4 shadow-lg w-full">
     <nav class="flex items-center">
       <!-- Left: Website Name -->
@@ -54,10 +55,23 @@
     </div>
   </div>
   
+  <!-- Friend Modal -->
+  <div id="friend-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center">
+    <div class="bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full">
+      <h2 class="text-xl font-bold mb-4">Add a Friend</h2>
+      <input type="text" id="friend-username" placeholder="Enter Codeforces handle" class="w-full p-2 mb-4 bg-gray-700 border border-gray-600 rounded">
+      <button onclick="addFriend()" class="w-full bg-blue-500 hover:bg-blue-600 p-2 rounded">Add Friend</button>
+      <h3 class="text-lg font-semibold mt-4">Friend List</h3>
+      <ul id="friend-list" class="mt-2"></ul>
+      <button onclick="document.getElementById('friend-modal').classList.add('hidden')" class="mt-4 w-full bg-red-500 hover:bg-red-600 p-2 rounded">Close</button>
+    </div>
+  </div>
+  
   <script>
     let currentPage = 1;
     const submissionsPerPage = 100;
-
+    
+    /* ----------------- HEADER AUTH & FRIEND OPTION ----------------- */
     function updateHeader() {
       const authItem = document.getElementById('auth-item');
       const storedUsername = localStorage.getItem('cf_username');
@@ -66,9 +80,18 @@
           <div class="relative">
             <a href="#" id="auth-link" class="text-lg font-semibold hover:underline">${storedUsername} ▼</a>
             <ul id="dropdown-menu" class="absolute right-0 mt-2 w-48 bg-gray-700 text-white shadow-lg rounded hidden">
-              <li class="border-b border-gray-600"><a href="user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a></li>
-              <li class="border-b border-gray-600"><a href="progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a></li>
-              <li><a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a></li>
+              <li class="border-b border-gray-600">
+                <a href="user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a>
+              </li>
+              <li class="border-b border-gray-600">
+                <a href="progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a>
+              </li>
+              <li class="border-b border-gray-600">
+                <a href="#" id="my-friend-btn" class="block px-4 py-2 hover:bg-gray-600">My Friend</a>
+              </li>
+              <li>
+                <a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a>
+              </li>
             </ul>
           </div>
         `;
@@ -82,28 +105,78 @@
           updateHeader();
           window.location.href = "index.html";
         });
+        document.getElementById('my-friend-btn').addEventListener('click', function(e) {
+          e.preventDefault();
+          document.getElementById('friend-modal').classList.remove('hidden');
+          updateFriendList();
+        });
       } else {
         authItem.innerHTML = `<a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>`;
       }
     }
     document.addEventListener("DOMContentLoaded", updateHeader);
-
+    
+    /* ----------------- FRIEND FUNCTIONS ----------------- */
+    function addFriend() {
+      const friendUsername = document.getElementById('friend-username').value.trim();
+      if (!friendUsername) {
+        alert("Please enter a valid Codeforces handle.");
+        return;
+      }
+      fetch(`https://codeforces.com/api/user.info?handles=${friendUsername}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === "OK") {
+            let friends = JSON.parse(localStorage.getItem('cf_friends')) || [];
+            if (!friends.includes(friendUsername)) {
+              friends.push(friendUsername);
+              localStorage.setItem('cf_friends', JSON.stringify(friends));
+              updateFriendList();
+              alert("Friend added successfully!");
+            } else {
+              alert("This friend is already added.");
+            }
+          } else {
+            alert("Invalid Codeforces handle. Please try again.");
+          }
+        })
+        .catch(error => {
+          console.error("Error contacting Codeforces API:", error);
+          alert("Error contacting Codeforces API. Please try again later.");
+        });
+    }
+    
+    function updateFriendList() {
+      const friendList = document.getElementById('friend-list');
+      friendList.innerHTML = "";
+      let friends = JSON.parse(localStorage.getItem('cf_friends')) || [];
+      if (friends.length === 0) {
+        friendList.innerHTML = "<li class='text-gray-400'>No friends added yet.</li>";
+      } else {
+        friends.forEach(friend => {
+          let li = document.createElement('li');
+          li.textContent = friend;
+          li.className = "px-4 py-2 bg-gray-700 rounded mb-2";
+          friendList.appendChild(li);
+        });
+      }
+    }
+    
+    /* ----------------- SUBMISSIONS FETCHING ----------------- */
     function resetPageAndFetch() {
       currentPage = 1;
       fetchSubmissions();
     }
-
+    
     async function fetchSubmissions() {
       const userHandle = document.getElementById('handleInput').value;
       if (!userHandle) {
         alert('Please enter a Codeforces handle');
         return;
       }
-      
-      // Calculate starting index (Codeforces API uses 1-indexed "from")
+      // Codeforces API uses 1-indexed "from"
       const from = (currentPage - 1) * submissionsPerPage + 1;
       const url = `https://codeforces.com/api/user.status?handle=${userHandle}&from=${from}&count=${submissionsPerPage}`;
-      
       try {
         const response = await fetch(url);
         const data = await response.json();
@@ -113,33 +186,29 @@
         }
         const submissionsTable = document.getElementById('submissionsTable');
         submissionsTable.innerHTML = '';
-        
         data.result.forEach(submission => {
           const row = `<tr class="border bg-gray-700">
-              <td class="border p-2"><a href="https://codeforces.com/contest/${submission.problem.contestId}/problem/${submission.problem.index}" target="_blank" class="text-blue-400">${submission.problem.name}</a></td>
+              <td class="border p-2"><a href="https://codeforces.com/contest/${submission.problem.contestId}/problem/${submission.problem.index}" target="_blank" class="text-blue-400 hover:underline">${submission.problem.name}</a></td>
               <td class="border p-2">${submission.programmingLanguage}</td>
               <td class="border p-2 ${submission.verdict === 'OK' ? 'text-green-400' : 'text-red-400'}">${submission.verdict}</td>
               <td class="border p-2">${submission.timeConsumedMillis} ms</td>
           </tr>`;
           submissionsTable.innerHTML += row;
         });
-        
-        // Update pagination buttons based on fetched data.
         document.getElementById('prevBtn').disabled = (currentPage === 1);
-        // If fewer than submissionsPerPage returned, disable next.
         document.getElementById('nextBtn').disabled = (data.result.length < submissionsPerPage);
       } catch (error) {
         alert('Failed to fetch submissions');
       }
     }
-
+    
     document.getElementById('prevBtn').addEventListener('click', function() {
       if (currentPage > 1) {
         currentPage--;
         fetchSubmissions();
       }
     });
-
+    
     document.getElementById('nextBtn').addEventListener('click', function() {
       currentPage++;
       fetchSubmissions();
