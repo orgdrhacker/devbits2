@@ -43,6 +43,8 @@
         <!-- Options will be added dynamically -->
       </select>
       <button id="filterBtn" class="bg-blue-600 px-4 py-2 rounded text-white hover:bg-blue-700">Filter</button>
+      <!-- NEW BUTTON: Unsolved Only -->
+      <button id="unsolvedBtn" class="bg-green-600 px-4 py-2 rounded text-white hover:bg-green-700">Unsolved Only</button>
     </div>
 
     <!-- Results Section -->
@@ -51,13 +53,25 @@
     <div id="pagination" class="mt-4 flex justify-center space-x-4"></div>
   </main>
 
+  <!-- Friend Modal -->
+  <div id="friend-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center">
+    <div class="bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full">
+      <h2 class="text-xl font-bold mb-4">Add a Friend</h2>
+      <input type="text" id="friend-username" placeholder="Enter Codeforces handle" class="w-full p-2 mb-4 bg-gray-700 border border-gray-600 rounded">
+      <button onclick="addFriend()" class="w-full bg-blue-500 hover:bg-blue-600 p-2 rounded">Add Friend</button>
+      <h3 class="text-lg font-semibold mt-4">Friend List</h3>
+      <ul id="friend-list" class="mt-2"></ul>
+      <button onclick="document.getElementById('friend-modal').classList.add('hidden')" class="mt-4 w-full bg-red-500 hover:bg-red-600 p-2 rounded">Close</button>
+    </div>
+  </div>
+
   <script>
     let allProblems = [];
     let currentFilteredProblems = [];
     let currentPage = 1;
     const itemsPerPage = 100;
 
-    // Update header for logged in users (if applicable)
+    /* ----------------- HEADER AUTH & FRIEND OPTION ----------------- */
     function updateHeader() {
       const authItem = document.getElementById('auth-item');
       const storedUsername = localStorage.getItem('cf_username');
@@ -66,9 +80,21 @@
           <div class="relative">
             <a href="#" id="auth-link" class="text-lg font-semibold hover:underline">${storedUsername} ▼</a>
             <ul id="dropdown-menu" class="absolute right-0 mt-2 w-48 bg-gray-700 text-white shadow-lg rounded hidden">
-              <li class="border-b border-gray-600"><a href="user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a></li>
-              <li class="border-b border-gray-600"><a href="progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a></li>
-              <li><a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a></li>
+              <li class="border-b border-gray-600">
+                <a href="user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a>
+              </li>
+              <li class="border-b border-gray-600">
+                <a href="progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a>
+              </li>
+              <li class="border-b border-gray-600">
+                <a href="smartsugge2.html" class="block px-4 py-2 hover:bg-gray-600">Helper tool</a>
+              </li>
+              <li class="border-b border-gray-600">
+                <a href="#" id="my-friend-btn" class="block px-4 py-2 hover:bg-gray-600">My Friend</a>
+              </li>
+              <li>
+                <a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a>
+              </li>
             </ul>
           </div>
         `;
@@ -82,18 +108,24 @@
           updateHeader();
           window.location.href = "index.html";
         });
+        document.getElementById('my-friend-btn').addEventListener('click', function(e) {
+          e.preventDefault();
+          document.getElementById('friend-modal').classList.remove('hidden');
+          updateFriendList();
+        });
+      } else {
+        authItem.innerHTML = `<a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>`;
       }
     }
     document.addEventListener("DOMContentLoaded", updateHeader);
 
-    // Fetch problems from Codeforces API
+    /* ----------------- PROBLEMSET FUNCTIONS ----------------- */
     async function fetchProblems() {
       try {
         const response = await fetch("https://codeforces.com/api/problemset.problems");
         const data = await response.json();
         if (data.status === "OK") {
           allProblems = data.result.problems;
-          // Initially, no filters applied; show all problems.
           currentFilteredProblems = allProblems;
           currentPage = 1;
           displayProblemsPage();
@@ -107,7 +139,6 @@
       }
     }
 
-    // Populate the dropdown with unique problem tags
     function populateTagSelector(problems) {
       const tagSet = new Set();
       problems.forEach(problem => {
@@ -115,7 +146,6 @@
       });
       const tags = Array.from(tagSet).sort();
       const tagSelector = document.getElementById("tagSelector");
-      // Add default option for all tags
       tagSelector.innerHTML = `<option value="all">All Tags</option>`;
       tags.forEach(tag => {
         const option = document.createElement("option");
@@ -125,21 +155,45 @@
       });
     }
 
-    // Display a given list of problems on the page
+    /**
+     *  displayProblems (Table Only)
+     *  Renders a table with columns for Problem Name, Rating, and Tags.
+     */
     function displayProblems(problems) {
       const resultDiv = document.getElementById("result");
-      let html = "";
+      let html = `
+        <table class="w-full border border-gray-600 text-left text-sm">
+          <thead class="bg-gray-700">
+            <tr>
+              <th class="px-4 py-2 border-b border-gray-600 text-gray-300 uppercase tracking-wider">Problem Name</th>
+              <th class="px-4 py-2 border-b border-gray-600 text-gray-300 uppercase tracking-wider">Rating</th>
+              <th class="px-4 py-2 border-b border-gray-600 text-gray-300 uppercase tracking-wider">Tags</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
       problems.forEach(problem => {
         const problemLink = `https://codeforces.com/problemset/problem/${problem.contestId}/${problem.index}`;
-        html += `<p class="mb-4">
-                   <a href="${problemLink}" target="_blank" class="text-blue-400 hover:underline">${problem.name}</a>
-                   (Rating: ${problem.rating || "N/A"}, Tags: ${problem.tags.join(', ')})
-                 </p>`;
+        html += `
+          <tr class="border-b border-gray-600 hover:bg-gray-700">
+            <td class="px-4 py-2">
+              <a href="${problemLink}" target="_blank" class="text-blue-400 hover:underline">${problem.name}</a>
+            </td>
+            <td class="px-4 py-2">${problem.rating || "N/A"}</td>
+            <td class="px-4 py-2">${problem.tags.join(', ')}</td>
+          </tr>
+        `;
       });
+
+      html += `
+          </tbody>
+        </table>
+      `;
+
       resultDiv.innerHTML = html;
     }
 
-    // Display the current page of problems and update pagination buttons
     function displayProblemsPage() {
       const startIndex = (currentPage - 1) * itemsPerPage;
       const pageProblems = currentFilteredProblems.slice(startIndex, startIndex + itemsPerPage);
@@ -147,7 +201,6 @@
       updatePaginationButtons();
     }
 
-    // Update pagination buttons based on current page and total pages
     function updatePaginationButtons() {
       const paginationDiv = document.getElementById("pagination");
       const totalPages = Math.ceil(currentFilteredProblems.length / itemsPerPage);
@@ -172,7 +225,6 @@
       });
     }
 
-    // Apply filters based on rating and selected tag
     function applyFilters() {
       const minRating = parseInt(document.getElementById("minRating").value) || 0;
       const maxRating = parseInt(document.getElementById("maxRating").value) || Infinity;
@@ -185,12 +237,100 @@
       currentPage = 1;
       displayProblemsPage();
     }
-
-    // Event listener for the filter button
     document.getElementById("filterBtn").addEventListener("click", applyFilters);
-
-    // Initialize by fetching problems on page load
     document.addEventListener("DOMContentLoaded", fetchProblems);
+
+    /* ----------------- NEW FUNCTION: Unsolved Only ----------------- */
+    async function unsolvedOnly() {
+      const handle = localStorage.getItem('cf_username');
+      if (!handle) {
+        alert("No user is logged in. Please log in first.");
+        return;
+      }
+
+      try {
+        // Fetch user's submissions (up to 100k)
+        const response = await fetch(`https://codeforces.com/api/user.status?handle=${handle}&from=1&count=100000`);
+        const data = await response.json();
+
+        if (data.status === "OK") {
+          // Gather all solved problems in a set
+          const solvedSet = new Set();
+          data.result.forEach(sub => {
+            if (sub.verdict === "OK" && sub.problem.contestId && sub.problem.index) {
+              solvedSet.add(sub.problem.contestId + sub.problem.index);
+            }
+          });
+
+          // Filter out solved problems from the current list
+          currentFilteredProblems = currentFilteredProblems.filter(
+            p => !solvedSet.has(p.contestId + p.index)
+          );
+          currentPage = 1;
+          displayProblemsPage();
+
+          // CHANGE THE BUTTON COLOR TO INDICATE FILTER IS APPLIED
+          const btn = document.getElementById("unsolvedBtn");
+          btn.classList.remove("bg-green-600", "hover:bg-green-700");
+          btn.classList.add("bg-red-600", "hover:bg-red-700");
+
+        } else {
+          alert("Failed to fetch user submissions. Please try again later.");
+        }
+      } catch (err) {
+        console.error("Error fetching user submissions:", err);
+        alert("Error fetching user submissions. Check the console for more details.");
+      }
+    }
+
+    // Attach event listener to the new Unsolved Only button
+    document.getElementById("unsolvedBtn").addEventListener("click", unsolvedOnly);
+
+    /* ----------------- FRIEND FUNCTIONS ----------------- */
+    function addFriend() {
+      const friendUsername = document.getElementById('friend-username').value.trim();
+      if (!friendUsername) {
+        alert("Please enter a valid Codeforces handle.");
+        return;
+      }
+      fetch(`https://codeforces.com/api/user.info?handles=${friendUsername}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === "OK") {
+            let friends = JSON.parse(localStorage.getItem('cf_friends')) || [];
+            if (!friends.includes(friendUsername)) {
+              friends.push(friendUsername);
+              localStorage.setItem('cf_friends', JSON.stringify(friends));
+              updateFriendList();
+              alert("Friend added successfully!");
+            } else {
+              alert("This friend is already added.");
+            }
+          } else {
+            alert("Invalid Codeforces handle. Please try again.");
+          }
+        })
+        .catch(error => {
+          console.error("Error contacting Codeforces API:", error);
+          alert("Error contacting Codeforces API. Please try again later.");
+        });
+    }
+
+    function updateFriendList() {
+      const friendList = document.getElementById('friend-list');
+      friendList.innerHTML = "";
+      let friends = JSON.parse(localStorage.getItem('cf_friends')) || [];
+      if (friends.length === 0) {
+        friendList.innerHTML = "<li class='text-gray-400'>No friends added yet.</li>";
+      } else {
+        friends.forEach(friend => {
+          let li = document.createElement('li');
+          li.textContent = friend;
+          li.className = "px-4 py-2 bg-gray-700 rounded mb-2";
+          friendList.appendChild(li);
+        });
+      }
+    }
   </script>
 </body>
 </html>

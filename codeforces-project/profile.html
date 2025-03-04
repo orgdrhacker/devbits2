@@ -78,6 +78,18 @@
     <div id="contestList" class="mt-6"></div>
   </main>
 
+  <!-- Friend Modal -->
+  <div id="friend-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center">
+    <div class="bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full">
+      <h2 class="text-xl font-bold mb-4">Add a Friend</h2>
+      <input type="text" id="friend-username" placeholder="Enter Codeforces handle" class="w-full p-2 mb-4 bg-gray-700 border border-gray-600 rounded">
+      <button onclick="addFriend()" class="w-full bg-blue-500 hover:bg-blue-600 p-2 rounded">Add Friend</button>
+      <h3 class="text-lg font-semibold mt-4">Friend List</h3>
+      <ul id="friend-list" class="mt-2"></ul>
+      <button onclick="document.getElementById('friend-modal').classList.add('hidden')" class="mt-4 w-full bg-red-500 hover:bg-red-600 p-2 rounded">Close</button>
+    </div>
+  </div>
+
   <script>
     /* ----------------- HEADER AUTH ----------------- */
     function updateHeader() {
@@ -94,6 +106,10 @@
               <li class="border-b border-gray-600">
                 <a href="progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a>
               </li>
+               <li class="border-b border-gray-600"><a href="./smartsugge2.html" class="block px-4 py-2 hover:bg-gray-600">Helper Tool</a></li>
+              <li class="border-b border-gray-600">
+                <a href="#" id="my-friend-btn" class="block px-4 py-2 hover:bg-gray-600">My Friend</a>
+              </li>
               <li>
                 <a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a>
               </li>
@@ -109,6 +125,11 @@
           localStorage.removeItem('cf_username');
           updateHeader();
           window.location.href = "index.html";
+        });
+        document.getElementById('my-friend-btn').addEventListener('click', function(e) {
+          e.preventDefault();
+          document.getElementById('friend-modal').classList.remove('hidden');
+          updateFriendList();
         });
       } else {
         authItem.innerHTML = `<a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>`;
@@ -167,14 +188,11 @@
         }
         // Sort ratingData chronologically (oldest to newest) for chart
         ratingData.sort((a, b) => a.ratingUpdateTimeSeconds - b.ratingUpdateTimeSeconds);
-
         const labels = ratingData.map(entry =>
           new Date(entry.ratingUpdateTimeSeconds * 1000).toLocaleDateString()
         );
         const ratings = ratingData.map(entry => entry.newRating);
         const contestNames = ratingData.map(entry => entry.contestName);
-
-        // Create rating chart
         if (window.ratingChartInstance) {
           window.ratingChartInstance.destroy();
         }
@@ -208,39 +226,27 @@
               }
             },
             scales: {
-              x: {
-                title: { display: true, text: 'Contest Date' }
-              },
-              y: {
-                title: { display: true, text: 'Rating' },
-                beginAtZero: false
-              }
+              x: { title: { display: true, text: 'Contest Date' } },
+              y: { title: { display: true, text: 'Rating' }, beginAtZero: false }
             }
           }
         });
-
-        // Build contest history list with pagination
-        // Reverse the ratingData so that newest contests come first.
         const reversedData = [...ratingData].reverse();
-        // Save contest data globally for pagination
         window.contestData = reversedData;
         window.currentContestPage = 0;
         renderContestList();
-
       } catch (error) {
         errorMessage.textContent = 'Error: ' + error.message;
         console.error(error);
       }
     }
 
-    // Render the contest list for the current page
     function renderContestList() {
       const contestsPerPage = 5;
       const page = window.currentContestPage;
       const startIndex = page * contestsPerPage;
       const endIndex = startIndex + contestsPerPage;
       const pageData = window.contestData.slice(startIndex, endIndex);
-      
       let html = '<h2 class="text-2xl font-bold mb-4">Contest History</h2>';
       html += '<ul class="space-y-4">';
       pageData.forEach(entry => {
@@ -254,8 +260,6 @@
           </li>`;
       });
       html += '</ul>';
-      
-      // Pagination Controls
       html += '<div class="flex justify-center mt-4 space-x-4">';
       if (page > 0) {
         html += '<button id="prevPage" class="bg-blue-500 px-4 py-2 rounded text-white hover:bg-blue-600">Previous</button>';
@@ -264,12 +268,10 @@
         html += '<button id="nextPage" class="bg-blue-500 px-4 py-2 rounded text-white hover:bg-blue-600">Next</button>';
       }
       html += '</div>';
-      
       document.getElementById('contestList').innerHTML = html;
       attachPaginationEvents();
     }
 
-    // Attach event listeners to pagination buttons
     function attachPaginationEvents() {
       const prevButton = document.getElementById('prevPage');
       if (prevButton) {
@@ -292,7 +294,6 @@
         const profile = await fetchProfileData(username);
         displayProfileInfo(profile);
         await plotRatingGraphAndContests(username);
-        // Generate the calendar heatmap after rating data is plotted
         generateCalendarHeatmap(username);
       } catch (error) {
         document.getElementById('errorMessage').textContent = 'Error: ' + error.message;
@@ -300,18 +301,14 @@
       }
     }
 
-    /* ----------------- CALENDAR HEATMAP (Full Width) ----------------- */
     async function generateCalendarHeatmap(username) {
       const heatmapError = document.getElementById('heatmapError');
       const heatmapLoading = document.getElementById('heatmapLoading');
       const heatmapContainer = document.getElementById('heatmapContainer');
-
       heatmapError.textContent = '';
       heatmapContainer.innerHTML = '';
       heatmapLoading.classList.remove('hidden');
-
       try {
-        // 1) Fetch user submissions
         const url = `https://codeforces.com/api/user.status?handle=${username}&count=10000`;
         const response = await fetch(url);
         const data = await response.json();
@@ -323,23 +320,17 @@
           heatmapError.textContent = `No submissions found for "${username}".`;
           return;
         }
-
-        // 2) Tally daily submission counts
         const counts = {};
         submissions.forEach(sub => {
           const dayStart = d3.timeDay.floor(new Date(sub.creationTimeSeconds * 1000));
           const key = +dayStart;
           counts[key] = (counts[key] || 0) + 1;
         });
-
-        // Convert to array for easier sorting
         let dataArray = Object.keys(counts).map(k => ({
           date: new Date(+k),
           count: counts[k]
         }));
         dataArray.sort((a, b) => a.date - b.date);
-
-        // 3) Build a "day by day" array from earliest to latest date
         const minDate = dataArray[0].date;
         const maxDate = dataArray[dataArray.length - 1].date;
         const fullData = [];
@@ -352,34 +343,24 @@
           });
           current = d3.timeDay.offset(current, 1);
         }
-
-        // 4) Calculate weeks spanned and set cellSize to fill container width
         const margin = { top: 20, right: 20, bottom: 20, left: 20 };
         const firstWeek = d3.timeWeek.count(d3.timeWeek.floor(minDate), minDate);
         const lastWeek = d3.timeWeek.count(d3.timeWeek.floor(minDate), maxDate) + 1;
         const numWeeks = lastWeek - firstWeek + 1;
-
         const containerWidth = heatmapContainer.clientWidth || 600;
         const cellSize = (containerWidth - margin.left - margin.right) / numWeeks;
         const width = margin.left + margin.right + numWeeks * cellSize;
         const height = margin.top + margin.bottom + 7 * cellSize;
-
-        // 5) Create SVG heatmap
         const svg = d3.select(heatmapContainer)
           .append('svg')
           .attr('width', width)
           .attr('height', height);
-
         const g = svg.append('g')
           .attr('transform', `translate(${margin.left},${margin.top})`);
-
-        // Color scale
         const maxCount = d3.max(fullData, d => d.count);
         const colorScale = d3.scaleLinear()
           .domain([0, maxCount])
           .range(['#eeeeee', '#003366']);
-
-        // 6) Plot each day by week and day-of-week
         g.selectAll('rect')
           .data(fullData)
           .enter()
@@ -402,6 +383,52 @@
       }
     }
 
+    /* ----------------- FRIEND FUNCTIONS ----------------- */
+    function addFriend() {
+      const friendUsername = document.getElementById('friend-username').value.trim();
+      if (!friendUsername) {
+        alert("Please enter a valid Codeforces handle.");
+        return;
+      }
+      fetch(`https://codeforces.com/api/user.info?handles=${friendUsername}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === "OK") {
+            let friends = JSON.parse(localStorage.getItem('cf_friends')) || [];
+            if (!friends.includes(friendUsername)) {
+              friends.push(friendUsername);
+              localStorage.setItem('cf_friends', JSON.stringify(friends));
+              updateFriendList();
+              alert("Friend added successfully!");
+            } else {
+              alert("This friend is already added.");
+            }
+          } else {
+            alert("Invalid Codeforces handle. Please try again.");
+          }
+        })
+        .catch(error => {
+          console.error("Error contacting Codeforces API:", error);
+          alert("Error contacting Codeforces API. Please try again later.");
+        });
+    }
+
+    function updateFriendList() {
+      const friendList = document.getElementById('friend-list');
+      friendList.innerHTML = "";
+      let friends = JSON.parse(localStorage.getItem('cf_friends')) || [];
+      if (friends.length === 0) {
+        friendList.innerHTML = "<li class='text-gray-400'>No friends added yet.</li>";
+      } else {
+        friends.forEach(friend => {
+          let li = document.createElement('li');
+          li.textContent = friend;
+          li.className = "px-4 py-2 bg-gray-700 rounded mb-2";
+          friendList.appendChild(li);
+        });
+      }
+    }
+
     /* ----------------- EVENT LISTENERS ----------------- */
     document.getElementById('plotButton').addEventListener('click', function() {
       const username = document.getElementById('usernameInput').value.trim();
@@ -412,7 +439,6 @@
       plotProfileAndHistory(username);
     });
 
-    // On load, if user is logged in, auto-plot everything
     document.addEventListener('DOMContentLoaded', () => {
       const storedUsername = localStorage.getItem('cf_username');
       if (storedUsername) {
