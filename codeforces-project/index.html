@@ -7,14 +7,13 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-900 text-white">
+
   <!-- Navigation Header -->
   <header class="bg-gray-800 p-4 shadow-lg w-full">
     <nav class="flex items-center">
-      <!-- Left: Website Name -->
       <div>
-        <a href="./index.html" class="text-2xl font-bold pl-4">HeckerBhai</a>
+        <a href="./index.html" class="text-2xl font-bold pl-4">Coderia</a>
       </div>
-      <!-- Right: Navigation Links -->
       <div class="flex ml-auto items-center space-x-6 pr-4">
         <a href="./index.html" class="text-lg font-semibold hover:underline">HOME</a>
         <a href="./profile.html" class="text-lg font-semibold hover:underline">PROFILE</a>
@@ -23,38 +22,53 @@
         <a href="./problemset.html" class="text-lg font-semibold hover:underline">PROBLEMSET</a>
         <a href="./compare.html" class="text-lg font-semibold hover:underline">COMPARE</a>
         <div id="auth-item">
-          <!-- Default: show LOGIN link -->
           <a href="./login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>
         </div>
       </div>
     </nav>
   </header>
   
-  <!-- Main Content Container -->
+  <!-- Welcome Section -->
   <div class="max-w-4xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg">
     <h1 class="text-3xl font-bold text-center mb-4">Welcome to Codeforces Tracker</h1>
-    <p class="text-center text-gray-300">Track your Codeforces profile, submissions, and leaderboard standings easily.</p>
+    <p class="text-center text-gray-300">
+      Track your Codeforces profile, submissions, and leaderboard standings easily.
+    </p>
   </div>
   
   <!-- Create Contest Button -->
   <div class="max-w-4xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg flex justify-center">
-    <a href="./contestc1.html" class="text-lg font-semibold bg-blue-600 px-4 py-2 rounded hover:bg-blue-700">Create Contest</a>
+    <a href="./contestc1.html" class="text-lg font-semibold bg-blue-600 px-4 py-2 rounded hover:bg-blue-700">
+      Create Contest
+    </a>
+  </div>
+  
+  <!-- My Contests Section (active/upcoming only) -->
+  <div class="max-w-4xl mx-auto mt-6 bg-gray-800 p-6 rounded-lg shadow-lg">
+    <h2 class="text-2xl font-bold mb-4">My Contests</h2>
+    <div id="contestsContainer">
+      <!-- Contests will be inserted here -->
+    </div>
   </div>
   
   <!-- Friend Modal -->
   <div id="friend-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center">
     <div class="bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full">
       <h2 class="text-xl font-bold mb-4">Add a Friend</h2>
-      <input type="text" id="friend-username" placeholder="Enter Codeforces handle" class="w-full p-2 mb-4 bg-gray-700 border border-gray-600 rounded">
+      <input type="text" id="friend-username" placeholder="Enter Codeforces handle"
+             class="w-full p-2 mb-4 bg-gray-700 border border-gray-600 rounded">
       <button onclick="addFriend()" class="w-full bg-blue-500 hover:bg-blue-600 p-2 rounded">Add Friend</button>
       <h3 class="text-lg font-semibold mt-4">Friend List</h3>
       <ul id="friend-list" class="mt-2"></ul>
-      <button onclick="document.getElementById('friend-modal').classList.add('hidden')" class="mt-4 w-full bg-red-500 hover:bg-red-600 p-2 rounded">Close</button>
+      <button onclick="document.getElementById('friend-modal').classList.add('hidden')"
+              class="mt-4 w-full bg-red-500 hover:bg-red-600 p-2 rounded">
+        Close
+      </button>
     </div>
   </div>
   
   <script>
-    // Update header based on login status and add "My Friend" option
+    // HEADER & FRIEND MODAL
     function updateHeader() {
       const authItem = document.getElementById('auth-item');
       if (!authItem) return;
@@ -67,10 +81,10 @@
               <li class="border-b border-gray-600">
                 <a href="./user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a>
               </li>
+              
               <li class="border-b border-gray-600">
-                <a href="./progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a>
+                <a href="./smartsugge2.html" class="block px-4 py-2 hover:bg-gray-600">Helper tool</a>
               </li>
-               <li class="border-b border-gray-600"><a href="smartsugge2.html" class="block px-4 py-2 hover:bg-gray-600">Helper tool</a></li>
               <li class="border-b border-gray-600">
                 <a href="#" id="my-friend-btn" class="block px-4 py-2 hover:bg-gray-600">My Friend</a>
               </li>
@@ -101,7 +115,6 @@
     }
     document.addEventListener("DOMContentLoaded", updateHeader);
     
-    // Friend functions
     function addFriend() {
       const friendUsername = document.getElementById('friend-username').value.trim();
       if (!friendUsername) {
@@ -146,6 +159,49 @@
         });
       }
     }
+    
+    // LOAD CREATED CONTESTS
+    function loadCreatedContests() {
+      const container = document.getElementById("contestsContainer");
+      let contests = JSON.parse(localStorage.getItem("contests")) || [];
+      // Filter out ended contests
+      contests = contests.filter(contest => contest.startTime + contest.duration > Date.now());
+      if (contests.length === 0) {
+        container.innerHTML = "<p>No contests available.</p>";
+        return;
+      }
+      let html = "";
+      contests.forEach(contest => {
+        let contestName = contest.name || "Unnamed Contest";
+        let contestDetails = contest.details || "N/A";
+        let contestLink = contest.link || `contestRoom.html?id=${contest.contestId}`;
+        html += `
+          <div class="bg-gray-700 p-4 rounded-lg shadow-lg mb-4 flex justify-between items-center">
+            <div>
+              <h3 class="text-xl font-bold">${contestName}</h3>
+              <p class="text-gray-300">Details: ${contestDetails}</p>
+              <a href="${contestLink}" class="text-blue-400 hover:underline">View Contest</a>
+            </div>
+            <div>
+              <button onclick="removeContest(${contest.contestId})" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-sm">
+                Remove Contest
+              </button>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+    
+    // Remove a contest by ID
+    function removeContest(contestId) {
+      let contests = JSON.parse(localStorage.getItem("contests")) || [];
+      contests = contests.filter(c => c.contestId != contestId);
+      localStorage.setItem("contests", JSON.stringify(contests));
+      loadCreatedContests();
+    }
+    
+    document.addEventListener("DOMContentLoaded", loadCreatedContests);
   </script>
 </body>
 </html>
