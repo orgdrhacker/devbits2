@@ -1,172 +1,152 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Codeforces Compilation Error Login</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Contest - Codeforces Tracker</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-900 text-white flex items-center justify-center h-screen">
-  <div class="bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md">
-    <h1 class="text-2xl font-bold mb-4 text-center">Login (Compilation Error Check)</h1>
+<body class="bg-gray-900 text-white">
+  <!-- Navigation Header (Optional) -->
+  <header class="bg-gray-800 p-4 shadow-lg w-full">
+    <nav class="flex items-center">
+      <div>
+        <a href="index.html" class="text-2xl font-bold pl-4">Coderia</a>
+      </div>
+      <div class="flex ml-auto items-center space-x-6 pr-4">
+        <a href="index.html" class="text-lg font-semibold hover:underline">HOME</a>
+        <a href="profile.html" class="text-lg font-semibold hover:underline">PROFILE</a>
+        <a href="contest_list.html" class="text-lg font-semibold hover:underline">CONTESTS</a>
+        <a href="problemset.html" class="text-lg font-semibold hover:underline">PROBLEMSET</a>
+      </div>
+    </nav>
+  </header>
 
-    <!-- Handle Input -->
-    <label class="block mb-2">Codeforces Handle</label>
-    <input 
-      id="cfHandle" 
-      type="text" 
-      placeholder="Enter your CF handle" 
-      class="w-full p-2 mb-4 bg-gray-700 text-white rounded focus:outline-none"
-    />
+  <!-- Main Container -->
+  <main class="max-w-6xl mx-auto mt-8 bg-gray-800 p-6 rounded-lg shadow-lg">
+    <h1 class="text-3xl font-bold text-center mb-4">Create Contest</h1>
+    <p class="text-center text-gray-300 mb-6">
+      Load problems from Codeforces and select the ones for your contest.
+    </p>
 
-    <!-- Password Input (not used in real verification) -->
-    <label class="block mb-2">Password</label>
-    <input 
-      id="cfPassword" 
-      type="password" 
-      placeholder="Enter your password" 
-      class="w-full p-2 mb-4 bg-gray-700 text-white rounded focus:outline-none"
-    />
-
-    <!-- Random Problem Box -->
-    <div id="problemBox" class="bg-gray-700 p-4 rounded mb-4 hidden">
-      <h2 class="font-semibold text-lg mb-2">Your Verification Problem</h2>
-      <p id="problemName" class="mb-1 text-blue-300"></p>
-      <a id="problemLink" href="#" target="_blank" class="text-blue-400 hover:underline">
-        Open Problem
-      </a>
-    </div>
-
-    <!-- Buttons -->
-    <div class="flex justify-between items-center mt-4">
-      <button 
-        id="getProblemBtn" 
-        class="bg-green-600 px-4 py-2 rounded text-white hover:bg-green-700"
-      >
-        Get Verification Problem
-      </button>
-      <button 
-        id="verifyBtn" 
-        class="bg-blue-600 px-4 py-2 rounded text-white hover:bg-blue-700"
-      >
-        Verify & Login
+    <!-- Button to load problems -->
+    <div class="flex justify-end mb-4">
+      <button id="loadProblemsBtn" class="bg-green-600 px-4 py-2 rounded text-white hover:bg-green-700">
+        Load Problems
       </button>
     </div>
 
-    <!-- Error/Success Message -->
+    <!-- Container for problems table -->
+    <div id="problemsContainer" class="overflow-x-auto"></div>
+
+    <!-- Create Contest Button -->
+    <div class="flex justify-center mt-6">
+      <button id="createContestBtn" class="bg-blue-600 px-6 py-2 rounded text-white hover:bg-blue-700">
+        Create Contest
+      </button>
+    </div>
+
+    <!-- Message area -->
     <p id="message" class="mt-4 text-center"></p>
-  </div>
+  </main>
 
   <script>
-    // Store the chosen problem here once fetched
-    let chosenProblem = null;
+    // Global array to hold the full problemset from Codeforces
+    let problemSet = [];
+    // Use a Set to track keys (unique IDs) of selected problems
+    const selectedProblems = new Set();
 
-    /**
-     * Fetch a random problem from the Codeforces problemset
-     * and display it in the #problemBox.
-     */
-    async function fetchRandomProblem() {
-      const messageEl = document.getElementById('message');
-      messageEl.textContent = '';
+    // Function to load problems using Codeforces API
+    async function loadProblems() {
+      const container = document.getElementById("problemsContainer");
+      container.innerHTML = "Loading problems...";
       try {
-        // 1) Fetch the entire problemset
-        const response = await fetch('https://codeforces.com/api/problemset.problems');
+        const response = await fetch("https://codeforces.com/api/problemset.problems");
         const data = await response.json();
-        if (data.status !== 'OK') {
-          throw new Error('Error fetching problemset');
-        }
+        if (data.status !== "OK") throw new Error("Failed to fetch problems");
 
-        // 2) Pick a random problem
-        const problems = data.result.problems;
-        if (!problems.length) {
-          throw new Error('No problems found');
-        }
-        chosenProblem = problems[Math.floor(Math.random() * problems.length)];
+        // Save problems globally
+        problemSet = data.result.problems;
 
-        // 3) Display the chosen problem
-        document.getElementById('problemBox').classList.remove('hidden');
-        document.getElementById('problemName').textContent = chosenProblem.name;
-        const link = `https://codeforces.com/problemset/problem/${chosenProblem.contestId}/${chosenProblem.index}`;
-        document.getElementById('problemLink').setAttribute('href', link);
-
-      } catch (err) {
-        messageEl.textContent = 'Failed to fetch a problem. Try again.';
-        console.error(err);
-      }
-    }
-
-    /**
-     * Verify user by checking for a COMPILATION_ERROR verdict
-     * for the chosen problem in the user's submissions.
-     */
-    async function verifyAndLogin() {
-      const handle = document.getElementById('cfHandle').value.trim();
-      const password = document.getElementById('cfPassword').value.trim();
-      const messageEl = document.getElementById('message');
-      messageEl.textContent = '';
-
-      // Basic input validation
-      if (!handle || !password) {
-        messageEl.textContent = 'Please enter both handle and password.';
-        messageEl.className = 'mt-4 text-center text-red-400';
-        return;
-      }
-      if (!chosenProblem) {
-        messageEl.textContent = 'Please click "Get Verification Problem" first.';
-        messageEl.className = 'mt-4 text-center text-red-400';
-        return;
-      }
-
-      try {
-        // 1) Fetch user submissions from Codeforces
-        const subUrl = `https://codeforces.com/api/user.status?handle=${handle}&from=1&count=100000`;
-        const response = await fetch(subUrl);
-        const data = await response.json();
-        if (data.status !== 'OK') {
-          throw new Error('Failed to fetch submissions');
-        }
-
-        // 2) Look for a submission with verdict = COMPILATION_ERROR
-        //    that matches the chosen problem's contestId + index
-        const submissions = data.result;
-        const contestId = chosenProblem.contestId;
-        const index = chosenProblem.index;
-
-        const foundCompilationError = submissions.some(sub => {
-          const p = sub.problem;
-          return (
-            p.contestId === contestId &&
-            p.index === index &&
-            sub.verdict === 'COMPILATION_ERROR'
-          );
+        // Build the problems table with checkboxes
+        let html = `<table class="min-w-full border-collapse">
+                      <thead>
+                        <tr class="bg-gray-700">
+                          <th class="px-4 py-2 border border-gray-600">Select</th>
+                          <th class="px-4 py-2 border border-gray-600">Problem Name</th>
+                          <th class="px-4 py-2 border border-gray-600">Contest ID</th>
+                          <th class="px-4 py-2 border border-gray-600">Index</th>
+                          <th class="px-4 py-2 border border-gray-600">Rating</th>
+                          <th class="px-4 py-2 border border-gray-600">Tags</th>
+                        </tr>
+                      </thead>
+                      <tbody>`;
+        problemSet.forEach(problem => {
+          // Create a unique key for the problem: "contestId-index"
+          const key = `${problem.contestId}-${problem.index}`;
+          html += `
+            <tr class="hover:bg-gray-700">
+              <td class="px-4 py-2 border border-gray-600 text-center">
+                <input type="checkbox" class="problem-checkbox" data-key="${key}">
+              </td>
+              <td class="px-4 py-2 border border-gray-600">
+                <a href="https://codeforces.com/problemset/problem/${problem.contestId}/${problem.index}" target="_blank" class="text-blue-400 hover:underline">
+                  ${problem.name}
+                </a>
+              </td>
+              <td class="px-4 py-2 border border-gray-600">${problem.contestId}</td>
+              <td class="px-4 py-2 border border-gray-600">${problem.index}</td>
+              <td class="px-4 py-2 border border-gray-600">${problem.rating || "N/A"}</td>
+              <td class="px-4 py-2 border border-gray-600">${problem.tags.join(", ")}</td>
+            </tr>`;
         });
+        html += `</tbody></table>`;
+        container.innerHTML = html;
 
-        if (foundCompilationError) {
-          // Verification success -> "Log in"
-          messageEl.textContent = 'Login successful! You had a compilation error on the verification problem.';
-          messageEl.className = 'mt-4 text-center text-green-400';
-
-          // Save user in localStorage (simulating login)
-          localStorage.setItem('cf_username', handle);
-
-          // You can redirect to another page if you like
-          // window.location.href = "index.html";
-        } else {
-          // Verification failed
-          messageEl.textContent = 'Verification failed. No COMPILATION_ERROR found for the chosen problem.';
-          messageEl.className = 'mt-4 text-center text-red-400';
-        }
-
+        // Attach event listeners to checkboxes
+        const checkboxes = document.querySelectorAll(".problem-checkbox");
+        checkboxes.forEach(cb => {
+          cb.addEventListener("change", function() {
+            const key = this.getAttribute("data-key");
+            if (this.checked) {
+              selectedProblems.add(key);
+            } else {
+              selectedProblems.delete(key);
+            }
+          });
+        });
       } catch (err) {
-        messageEl.textContent = 'Error during verification. Check console.';
-        messageEl.className = 'mt-4 text-center text-red-400';
+        container.innerHTML = `<p class="text-red-500">Error loading problems: ${err.message}</p>`;
         console.error(err);
       }
     }
 
-    // Attach event listeners
-    document.getElementById('getProblemBtn').addEventListener('click', fetchRandomProblem);
-    document.getElementById('verifyBtn').addEventListener('click', verifyAndLogin);
+    // Function to create a contest by saving selected problems in localStorage
+    function createContest() {
+      const messageEl = document.getElementById("message");
+      if (selectedProblems.size === 0) {
+        messageEl.textContent = "Please select at least one problem.";
+        messageEl.className = "mt-4 text-center text-red-500";
+        return;
+      }
+      // Filter the global problemSet to only the problems whose keys are in selectedProblems
+      const selected = problemSet.filter(problem => {
+        const key = `${problem.contestId}-${problem.index}`;
+        return selectedProblems.has(key);
+      });
+
+      // Save selected problems into localStorage as JSON (key: "contestRoomProblems")
+      localStorage.setItem("contestRoomProblems", JSON.stringify(selected));
+      messageEl.textContent = "Contest created successfully!";
+      messageEl.className = "mt-4 text-center text-green-400";
+
+      // Optionally, you can redirect the user to the contest room page
+      // window.location.href = "contestRoom.html";
+    }
+
+    // Attach event listeners to buttons
+    document.getElementById("loadProblemsBtn").addEventListener("click", loadProblems);
+    document.getElementById("createContestBtn").addEventListener("click", createContest);
   </script>
 </body>
 </html>

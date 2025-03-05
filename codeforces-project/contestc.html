@@ -1,121 +1,90 @@
-<!doctype html>
-<html lang="en" class="bg-gray-900">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Contest Room</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Codeforces Tracker - Home</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-900 min-h-screen text-white">
+<body class="bg-gray-900 text-white">
   <!-- Navigation Header -->
   <header class="bg-gray-800 p-4 shadow-lg w-full">
     <nav class="flex items-center">
       <!-- Left: Website Name -->
       <div>
-        <a href="index.html" class="text-2xl font-bold pl-4">HeckerBhai</a>
+        <a href="./index.html" class="text-2xl font-bold pl-4">Coderia</a>
       </div>
-      <!-- Navigation Links and Timer -->
+      <!-- Right: Navigation Links -->
       <div class="flex ml-auto items-center space-x-6 pr-4">
-        <a href="index.html" class="text-lg font-semibold hover:underline">HOME</a>
-        <a href="profile.html" class="text-lg font-semibold hover:underline">PROFILE</a>
-        <a href="submissions.html" class="text-lg font-semibold hover:underline">SUBMISSIONS</a>
-        <a href="contest_list.html" class="text-lg font-semibold hover:underline">CONTESTS</a>
-        <a href="problemset.html" class="text-lg font-semibold hover:underline">PROBLEMSET</a>
-        <a href="compare.html" class="text-lg font-semibold hover:underline">COMPARE</a>
+        <a href="./index.html" class="text-lg font-semibold hover:underline">HOME</a>
+        <a href="./profile.html" class="text-lg font-semibold hover:underline">PROFILE</a>
+        <a href="./submissions.html" class="text-lg font-semibold hover:underline">SUBMISSIONS</a>
+        <a href="./contest_list.html" class="text-lg font-semibold hover:underline">CONTESTS</a>
+        <a href="./problemset.html" class="text-lg font-semibold hover:underline">PROBLEMSET</a>
+        <a href="./compare.html" class="text-lg font-semibold hover:underline">COMPARE</a>
         <div id="auth-item">
-          <a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>
+          <!-- Default: show LOGIN link -->
+          <a href="./login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>
         </div>
-        <!-- Timer placed as a flex item -->
-        <div id="timer" class="text-lg font-semibold ml-4"></div>
       </div>
     </nav>
   </header>
   
   <!-- Main Content Container -->
-  <main class="max-w-4xl mx-auto mt-8 bg-gray-800 p-6 rounded-lg shadow-lg">
-    <h1 class="text-3xl font-bold text-center mb-4">Contest Room</h1>
-    <p class="text-center text-gray-300 mb-6">
-      Below are the problems selected for this contest room. You can now start practicing by solving these problems.
-    </p>
-    
-    <div id="contestProblems" class="space-y-4"></div>
-    
-    <!-- Start Contest Button -->
-    <div class="flex justify-center mt-6">
-      <button id="startContestBtn" class="bg-green-600 px-6 py-2 rounded text-white hover:bg-green-700">Start Contest</button>
+  <div class="max-w-4xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg">
+    <h1 class="text-3xl font-bold text-center mb-4">Welcome to Codeforces Tracker</h1>
+    <p class="text-center text-gray-300">Track your Codeforces profile, submissions, and leaderboard standings easily.</p>
+  </div>
+  
+  <!-- Create Contest Button -->
+  <div class="max-w-4xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg flex justify-center">
+    <a href="./contestc1.html" class="text-lg font-semibold bg-blue-600 px-4 py-2 rounded hover:bg-blue-700">Create Contest</a>
+  </div>
+  
+  <!-- My Contests Section -->
+  <div class="max-w-4xl mx-auto mt-6 bg-gray-800 p-6 rounded-lg shadow-lg">
+    <h2 class="text-2xl font-bold mb-4">My Contests</h2>
+    <div id="contestsContainer">
+      <!-- Contest boxes will be injected here -->
     </div>
-  </main>
+  </div>
+  
+  <!-- Friend Modal -->
+  <div id="friend-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center">
+    <div class="bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full">
+      <h2 class="text-xl font-bold mb-4">Add a Friend</h2>
+      <input type="text" id="friend-username" placeholder="Enter Codeforces handle" class="w-full p-2 mb-4 bg-gray-700 border border-gray-600 rounded">
+      <button onclick="addFriend()" class="w-full bg-blue-500 hover:bg-blue-600 p-2 rounded">Add Friend</button>
+      <h3 class="text-lg font-semibold mt-4">Friend List</h3>
+      <ul id="friend-list" class="mt-2"></ul>
+      <button onclick="document.getElementById('friend-modal').classList.add('hidden')" class="mt-4 w-full bg-red-500 hover:bg-red-600 p-2 rounded">Close</button>
+    </div>
+  </div>
   
   <script>
-    // Timer Functionality: Countdown from 2 hours
-    function startTimer(duration, display) {
-      let timer = duration, hours, minutes, seconds;
-      setInterval(function() {
-        hours = parseInt(timer / 3600, 10);
-        minutes = parseInt((timer % 3600) / 60, 10);
-        seconds = parseInt(timer % 60, 10);
-        
-        hours = hours < 10 ? "0" + hours : hours;
-        minutes = minutes < 10 ? "0" + minutes : minutes;
-        seconds = seconds < 10 ? "0" + seconds : seconds;
-        
-        display.textContent = hours + ":" + minutes + ":" + seconds;
-        
-        if (--timer < 0) {
-          timer = 0;
-        }
-      }, 1000);
-    }
-    
-    document.addEventListener("DOMContentLoaded", function() {
-      const twoHoursInSeconds = 2 * 60 * 60; // 2 hours
-      const timerDisplay = document.getElementById('timer');
-      startTimer(twoHoursInSeconds, timerDisplay);
-    });
-    
-    // Contest Room: load selected problems from localStorage
-    function loadContestRoom() {
-      const contestData = localStorage.getItem("contestRoomProblems");
-      const contestProblemsDiv = document.getElementById("contestProblems");
-      if (!contestData) {
-        contestProblemsDiv.innerHTML = "<p>No contest problems found. Please create a contest room from the problemset page.</p>";
-        return;
-      }
-      const problems = JSON.parse(contestData);
-      let html = "";
-      problems.forEach(problem => {
-        const url = `https://codeforces.com/problemset/problem/${problem.contestId}/${problem.index}`;
-        html += `<div class="bg-gray-700 p-4 rounded shadow">
-                   <a href="${url}" target="_blank" class="text-blue-400 hover:underline">
-                     Problem: ${problem.contestId} ${problem.index}
-                   </a>
-                 </div>`;
-      });
-      contestProblemsDiv.innerHTML = html;
-    }
-    
-    document.getElementById("startContestBtn").addEventListener("click", function() {
-      alert("Contest started! Solve the problems and submit your solutions.");
-    });
-    
-    document.addEventListener("DOMContentLoaded", loadContestRoom);
-    
-    // Update header (if not already updated)
+    // Update header based on login status and add "My Friend" option
     function updateHeader() {
       const authItem = document.getElementById('auth-item');
+      if (!authItem) return;
       const storedUsername = localStorage.getItem('cf_username');
       if (storedUsername) {
         authItem.innerHTML = `
           <div class="relative">
             <a href="#" id="auth-link" class="text-lg font-semibold hover:underline">${storedUsername} ▼</a>
             <ul id="dropdown-menu" class="absolute right-0 mt-2 w-48 bg-gray-700 text-white shadow-lg rounded hidden">
-              <li class="border-b border-gray-600"><a href="user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a></li>
-              <li class="border-b border-gray-600"><a href="progress.html" class="block px-4 py-2 hover:bg-gray-600">Your Progress</a></li>
-               <li class="border-b border-gray-600"><a href="smartsugge2.html" class="block px-4 py-2 hover:bg-gray-600">Helper tool</a></li>
+              <li class="border-b border-gray-600">
+                <a href="./user_profile.html" class="block px-4 py-2 hover:bg-gray-600">View Profile</a>
+              </li>
+            
+              <li class="border-b border-gray-600">
+                <a href="./smartsugge2.html" class="block px-4 py-2 hover:bg-gray-600">Helper tool</a>
+              </li>
               <li class="border-b border-gray-600">
                 <a href="#" id="my-friend-btn" class="block px-4 py-2 hover:bg-gray-600">My Friend</a>
               </li>
-              <li><a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a></li>
+              <li>
+                <a href="#" id="logout" class="block px-4 py-2 hover:bg-gray-600">Logout</a>
+              </li>
             </ul>
           </div>
         `;
@@ -127,11 +96,92 @@
           e.preventDefault();
           localStorage.removeItem('cf_username');
           updateHeader();
-          window.location.href = "index.html";
+          window.location.href = "./index.html";
         });
+        document.getElementById('my-friend-btn').addEventListener('click', function(e) {
+          e.preventDefault();
+          document.getElementById('friend-modal').classList.remove('hidden');
+          updateFriendList();
+        });
+      } else {
+        authItem.innerHTML = `<a href="./login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>`;
       }
     }
     document.addEventListener("DOMContentLoaded", updateHeader);
+    
+    // Friend functions
+    function addFriend() {
+      const friendUsername = document.getElementById('friend-username').value.trim();
+      if (!friendUsername) {
+        alert("Please enter a valid Codeforces handle.");
+        return;
+      }
+      fetch(`https://codeforces.com/api/user.info?handles=${friendUsername}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === "OK") {
+            let friends = JSON.parse(localStorage.getItem('cf_friends')) || [];
+            if (!friends.includes(friendUsername)) {
+              friends.push(friendUsername);
+              localStorage.setItem('cf_friends', JSON.stringify(friends));
+              updateFriendList();
+              alert("Friend added successfully!");
+            } else {
+              alert("This friend is already added.");
+            }
+          } else {
+            alert("Invalid Codeforces handle. Please try again.");
+          }
+        })
+        .catch(error => {
+          console.error("Error contacting Codeforces API:", error);
+          alert("Error contacting Codeforces API. Please try again later.");
+        });
+    }
+    
+    function updateFriendList() {
+      const friendList = document.getElementById('friend-list');
+      friendList.innerHTML = "";
+      let friends = JSON.parse(localStorage.getItem('cf_friends')) || [];
+      if (friends.length === 0) {
+        friendList.innerHTML = "<li class='text-gray-400'>No friends added yet.</li>";
+      } else {
+        friends.forEach(friend => {
+          let li = document.createElement('li');
+          li.textContent = friend;
+          li.className = "px-4 py-2 bg-gray-700 rounded mb-2";
+          friendList.appendChild(li);
+        });
+      }
+    }
+    
+    // ---------------------------
+    // New: Display Created Contests on Home Page
+    // ---------------------------
+    function loadCreatedContests() {
+      const container = document.getElementById("contestsContainer");
+      // Assume contests are stored in localStorage under "contests" as an array
+      let contests = JSON.parse(localStorage.getItem("contests")) || [];
+      if (contests.length === 0) {
+        container.innerHTML = "<p>No contests created yet.</p>";
+        return;
+      }
+      // Build a list of contest boxes.
+      let html = "";
+      contests.forEach((contest, index) => {
+        // If the contest object doesn't have a name, we generate one as "Contest - {index+1}"
+        let contestName = contest.name ? contest.name : "Contest - " + (index + 1);
+        html += `<div class="bg-gray-700 p-4 rounded-lg shadow-lg mb-4">
+                   <h3 class="text-xl font-bold">${contestName}</h3>
+                   <p class="text-gray-300">Contest details here ...</p>
+                   <a href="${contest.link ? contest.link : '#'}" class="text-blue-400 hover:underline">View Contest</a>
+                 </div>`;
+      });
+      container.innerHTML = html;
+    }
+    
+    // Load created contests on page load
+    document.addEventListener("DOMContentLoaded", loadCreatedContests);
   </script>
 </body>
 </html>

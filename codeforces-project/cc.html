@@ -10,30 +10,23 @@
   <!-- Navigation Header -->
   <header class="bg-gray-800 p-4 shadow-lg w-full">
     <nav class="flex items-center">
-      <!-- Website Name -->
       <div>
         <a href="index.html" class="text-2xl font-bold pl-4">Coderia</a>
       </div>
-      <!-- Navigation Links -->
       <div class="flex ml-auto items-center space-x-6 pr-4">
         <a href="index.html" class="text-lg font-semibold hover:underline">HOME</a>
         <a href="profile.html" class="text-lg font-semibold hover:underline">PROFILE</a>
-        <a href="submissions.html" class="text-lg font-semibold hover:underline">SUBMISSIONS</a>
         <a href="contest_list.html" class="text-lg font-semibold hover:underline">CONTESTS</a>
         <a href="problemset.html" class="text-lg font-semibold hover:underline">PROBLEMSET</a>
-        <a href="compare.html" class="text-lg font-semibold hover:underline">COMPARE</a>
-        <div id="auth-item">
-          <a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>
-        </div>
       </div>
     </nav>
   </header>
 
-  <!-- Main Content Container -->
+  <!-- Main Container -->
   <main class="max-w-6xl mx-auto mt-8 bg-gray-800 p-6 rounded-lg shadow-lg">
     <h1 class="text-3xl font-bold text-center mb-4">Create Contest</h1>
     <p class="text-center text-gray-300 mb-6">
-      Load problems from Codeforces, select the ones for your contest, then click "Create Contest".
+      Load problems from Codeforces and select the ones for your contest.
     </p>
     
     <!-- Button to load problems -->
@@ -58,12 +51,9 @@
   </main>
 
   <script>
-    // Global variable to store the fetched problemset
     let problemSet = [];
-    // Use a Set to store unique keys for selected problems
     const selectedProblems = new Set();
 
-    // Function to load problems from the Codeforces problemset API
     async function loadProblems() {
       const container = document.getElementById("problemsContainer");
       container.innerHTML = "Loading problems...";
@@ -86,7 +76,6 @@
                       </thead>
                       <tbody>`;
         problemSet.forEach(problem => {
-          // Create a unique key using contestId and index
           const key = `${problem.contestId}-${problem.index}`;
           html += `
             <tr class="hover:bg-gray-700">
@@ -107,7 +96,6 @@
         html += `</tbody></table>`;
         container.innerHTML = html;
         
-        // Attach event listeners to each checkbox
         const checkboxes = document.querySelectorAll(".problem-checkbox");
         checkboxes.forEach(cb => {
           cb.addEventListener("change", function() {
@@ -125,7 +113,6 @@
       }
     }
     
-    // When the Create Contest button is clicked, save the selected problems
     function createContest() {
       const messageEl = document.getElementById("message");
       if (selectedProblems.size === 0) {
@@ -133,19 +120,17 @@
         messageEl.className = "mt-4 text-center text-red-500";
         return;
       }
-      // Filter out the problems in the problemSet matching the selected keys.
       const selected = problemSet.filter(problem => {
         const key = `${problem.contestId}-${problem.index}`;
         return selectedProblems.has(key);
       });
-      
-      // Save the selected problems in localStorage (as JSON)
       localStorage.setItem("contestRoomProblems", JSON.stringify(selected));
-      messageEl.textContent = "Contest created successfully!";
+      messageEl.textContent = "Contest created successfully! Redirecting...";
       messageEl.className = "mt-4 text-center text-green-400";
-      
-      // Optionally, redirect to contest room page:
-      // window.location.href = "contestRoom.html";
+      // Redirect to contest room page after 1 second.
+      setTimeout(() => {
+        window.location.href = "contestRoom.html";
+      }, 1000);
     }
     
     document.getElementById("loadProblemsBtn").addEventListener("click", loadProblems);
