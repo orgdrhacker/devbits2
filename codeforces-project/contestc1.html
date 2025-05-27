@@ -3,175 +3,79 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Create Contest - Codeforces Tracker</title>
+  <title>Create Contest - Coderia</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-900 text-white">
-  <!-- Navigation Header -->
-  <header class="bg-gray-800 p-4 shadow-lg w-full">
-    <nav class="flex items-center">
-      <div>
-        <a href="index.html" class="text-2xl font-bold pl-4">Coderia</a>
-      </div>
-      <div class="flex ml-auto items-center space-x-6 pr-4">
-        <a href="index.html" class="text-lg font-semibold hover:underline">HOME</a>
-        <a href="profile.html" class="text-lg font-semibold hover:underline">PROFILE</a>
-        <a href="submissions.html" class="text-lg font-semibold hover:underline">SUBMISSIONS</a>
-        <a href="contest_list.html" class="text-lg font-semibold hover:underline">CONTESTS</a>
-        <a href="problemset.html" class="text-lg font-semibold hover:underline">PROBLEMSET</a>
-        <a href="compare.html" class="text-lg font-semibold hover:underline">COMPARE</a>
-        <div id="auth-item">
-          <a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>
-        </div>
-      </div>
-    </nav>
-  </header>
-  
-  <!-- Contest Creation Form -->
-  <div class="max-w-4xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg">
-    <h1 class="text-3xl font-bold text-center mb-4">Create a New Contest</h1>
-    <div class="space-y-4">
-      <!-- Contest Name -->
-      <div>
-        <label for="contestName" class="block mb-2 font-semibold">Contest Name:</label>
-        <input type="text" id="contestName" class="w-full p-2 bg-gray-700 border border-gray-600 rounded" placeholder="Enter contest name" />
-      </div>
-      <!-- Details -->
-      <div>
-        <label for="contestDetails" class="block mb-2 font-semibold">Details:</label>
-        <textarea id="contestDetails" rows="3" class="w-full p-2 bg-gray-700 border border-gray-600 rounded" placeholder="Enter details"></textarea>
-      </div>
-      <!-- Contest Link (optional) -->
-      <div>
-        <label for="contestLink" class="block mb-2 font-semibold">Contest Link (optional):</label>
-        <input type="text" id="contestLink" class="w-full p-2 bg-gray-700 border border-gray-600 rounded" placeholder="Enter a link if any" />
-      </div>
-      <!-- Contest Start Time (minutes from now) -->
-      <div>
-        <label for="contestStart" class="block mb-2 font-semibold">Contest starts in (minutes):</label>
-        <input type="number" id="contestStart" class="w-full p-2 bg-gray-700 border border-gray-600 rounded" placeholder="e.g. 30" />
-      </div>
-      <!-- Contest Duration (minutes) -->
-      <div>
-        <label for="contestDuration" class="block mb-2 font-semibold">Contest Duration (minutes):</label>
-        <input type="number" id="contestDuration" class="w-full p-2 bg-gray-700 border border-gray-600 rounded" placeholder="e.g. 120" />
-      </div>
-      
-      <!-- Load Problems Button -->
-      <div class="mt-6">
-        <button id="loadProblemsBtn" class="bg-green-600 px-4 py-2 rounded text-white hover:bg-green-700">
-          Load Problems
-        </button>
-      </div>
-      <!-- Container for Problems Table -->
-      <div id="problemsContainer" class="overflow-x-auto mt-4 bg-gray-700 p-4 rounded">
-        <!-- Problems table will be inserted here -->
-      </div>
-      
-      <!-- Save Contest Button -->
-      <div class="mt-6">
-        <button id="saveContestBtn" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded font-semibold">
-          Save Contest
-        </button>
-      </div>
+
+<!-- NAVIGATION HEADER (reused) -->
+<header class="bg-gray-800 p-4 shadow-lg w-full">
+  <nav class="flex items-center">
+    <div>
+      <a href="./index.html" class="text-2xl font-bold pl-4">Coderia</a>
     </div>
+    <div class="flex ml-auto items-center space-x-6 pr-4">
+      <a href="./index.html" class="text-lg font-semibold hover:underline">HOME</a>
+      <a href="./profile.html" class="text-lg font-semibold hover:underline">PROFILE</a>
+      <a href="./submissions.html" class="text-lg font-semibold hover:underline">SUBMISSIONS</a>
+      <a href="./contest_list.html" class="text-lg font-semibold hover:underline">CONTESTS</a>
+      <a href="./problemset.html" class="text-lg font-semibold hover:underline">PROBLEMSET</a>
+      <a href="./compare.html" class="text-lg font-semibold hover:underline">COMPARE</a>
+    </div>
+  </nav>
+</header>
+
+<!-- CREATE CONTEST SECTION -->
+<div class="max-w-3xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg">
+  <h2 class="text-2xl font-bold mb-4">Create a New Contest</h2>
+
+  <div class="mb-4">
+    <label class="block mb-1 text-gray-300">Contest Name</label>
+    <input id="contest-name" type="text" class="w-full p-2 bg-gray-700 rounded border border-gray-600" placeholder="Enter contest name" />
   </div>
-  
-  <script>
-    let problemSet = [];
-    const selectedProblems = new Set();
 
-    async function loadProblems() {
-      const container = document.getElementById("problemsContainer");
-      container.innerHTML = "Loading problems...";
-      try {
-        const response = await fetch("https://codeforces.com/api/problemset.problems");
-        const data = await response.json();
-        if (data.status !== "OK") throw new Error("Failed to fetch problems");
-        problemSet = data.result.problems;
-        
-        let html = `
-          <table class="min-w-full border-collapse">
-            <thead>
-              <tr class="bg-gray-800">
-                <th class="px-4 py-2 border border-gray-600">Select</th>
-                <th class="px-4 py-2 border border-gray-600">Name</th>
-                <th class="px-4 py-2 border border-gray-600">ContestID</th>
-                <th class="px-4 py-2 border border-gray-600">Index</th>
-                <th class="px-4 py-2 border border-gray-600">Rating</th>
-                <th class="px-4 py-2 border border-gray-600">Tags</th>
-              </tr>
-            </thead>
-            <tbody>
-        `;
-        problemSet.forEach(prob => {
-          const key = `${prob.contestId}-${prob.index}`;
-          html += `
-            <tr class="hover:bg-gray-800">
-              <td class="px-4 py-2 border border-gray-600 text-center">
-                <input type="checkbox" class="problem-checkbox" data-key="${key}">
-              </td>
-              <td class="px-4 py-2 border border-gray-600">${prob.name}</td>
-              <td class="px-4 py-2 border border-gray-600">${prob.contestId}</td>
-              <td class="px-4 py-2 border border-gray-600">${prob.index}</td>
-              <td class="px-4 py-2 border border-gray-600">${prob.rating || "N/A"}</td>
-              <td class="px-4 py-2 border border-gray-600">${prob.tags.join(", ")}</td>
-            </tr>
-          `;
-        });
-        html += `</tbody></table>`;
-        container.innerHTML = html;
-        
-        const checkboxes = document.querySelectorAll(".problem-checkbox");
-        checkboxes.forEach(cb => {
-          cb.addEventListener("change", function() {
-            const key = this.getAttribute("data-key");
-            if (this.checked) {
-              selectedProblems.add(key);
-            } else {
-              selectedProblems.delete(key);
-            }
-          });
-        });
-      } catch (err) {
-        container.innerHTML = `<p class="text-red-500">Error: ${err.message}</p>`;
-      }
+  <div class="mb-4">
+    <label class="block mb-1 text-gray-300">Problem Codes (Comma separated, e.g. 1234A, 1234B)</label>
+    <input id="problem-codes" type="text" class="w-full p-2 bg-gray-700 rounded border border-gray-600" placeholder="Enter problems" />
+  </div>
+
+  <div class="mb-4">
+    <label class="block mb-1 text-gray-300">Duration (in minutes)</label>
+    <input id="duration" type="number" class="w-full p-2 bg-gray-700 rounded border border-gray-600" placeholder="60" />
+  </div>
+
+  <button onclick="createContest()" class="w-full bg-blue-600 hover:bg-blue-700 p-2 rounded mt-2">Create Contest</button>
+</div>
+
+<script>
+  function createContest() {
+    const name = document.getElementById("contest-name").value.trim();
+    const problems = document.getElementById("problem-codes").value.trim().split(",");
+    const duration = parseInt(document.getElementById("duration").value.trim()) * 60 * 1000; // minutes to ms
+
+    if (!name || problems.length === 0 || isNaN(duration)) {
+      alert("Please fill all the fields properly.");
+      return;
     }
 
-    function saveContest() {
-      const name = document.getElementById("contestName").value.trim() || "Untitled Contest";
-      const details = document.getElementById("contestDetails").value.trim() || "N/A";
-      const link = document.getElementById("contestLink").value.trim();
-      const startMins = parseInt(document.getElementById("contestStart").value, 10) || 0;
-      const durationMins = parseInt(document.getElementById("contestDuration").value, 10) || 0;
+    const contestId = Date.now(); // unique
+    const contest = {
+      contestId,
+      name,
+      problems: problems.map(p => p.trim()),
+      startTime: Date.now(),
+      duration,
+      participants: [], // usernames
+      leaderboard: {} // { username: score }
+    };
 
-      const uniqueId = Date.now();
+    let contests = JSON.parse(localStorage.getItem("contests")) || [];
+    contests.push(contest);
+    localStorage.setItem("contests", JSON.stringify(contests));
 
-      const newContest = {
-        contestId: uniqueId,
-        name: name,
-        details: details,
-        link: link || `contestRoom.html?id=${uniqueId}`,
-        startTime: Date.now() + (startMins * 60 * 1000),
-        duration: durationMins * 60 * 1000,
-        problems: []
-      };
-
-      const chosen = problemSet.filter(prob => {
-        const key = `${prob.contestId}-${prob.index}`;
-        return selectedProblems.has(key);
-      });
-      newContest.problems = chosen;
-
-      let contests = JSON.parse(localStorage.getItem("contests")) || [];
-      contests.push(newContest);
-      localStorage.setItem("contests", JSON.stringify(contests));
-
-      window.location.href = "index.html";
-    }
-
-    document.getElementById("loadProblemsBtn").addEventListener("click", loadProblems);
-    document.getElementById("saveContestBtn").addEventListener("click", saveContest);
-  </script>
+    alert("Contest created successfully!");
+    window.location.href = `contestRoom.html?id=${contestId}`;
+  }
+</script>
 </body>
 </html>
