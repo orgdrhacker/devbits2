@@ -1,205 +1,196 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="description" content="Codeforces Visualizer. Visualize, analyze and compare Codeforces user profiles. Compare max/min rating, contests participated, rating changes, best/worst contest positions, solved problems, and much more.">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-  <title>Codeforces Visualizer - Compare</title>
-  <!-- Include Tailwind CSS -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Compare Codeforces Profiles</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Optional: include Google Fonts if needed -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap">
 </head>
-
-<body class="bg-gray-900 text-white font-roboto">
-  <!-- Navigation Bar -->
-  <header class="bg-gray-800 p-4 shadow-lg w-full">
-    <nav class="flex items-center">
-      <!-- Left: Website Name -->
+<body class="bg-gray-900 text-white min-h-screen p-8">
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8">Compare Codeforces Profiles</h1>
+    <form id="compareForm" class="space-y-4 mb-6">
       <div>
-        <a href="index.html" class="text-2xl font-bold pl-4">Coderia</a>
+        <label for="handle1" class="block text-lg font-semibold">Handle 1</label>
+        <input type="text" id="handle1" class="mt-1 w-full p-2 bg-gray-800 border border-gray-600 rounded" />
+        <p id="error1" class="text-red-500 text-sm"></p>
       </div>
-      <!-- Right: Navigation Links -->
-      <div class="flex ml-auto items-center space-x-6 pr-4">
-        <a href="index.html" class="text-lg font-semibold hover:underline">HOME</a>
-        <a href="profile.html" class="text-lg font-semibold hover:underline">PROFILE</a>
-        <a href="submissions.html" class="text-lg font-semibold hover:underline">SUBMISSIONS</a>
-        <a href="contest_list.html" class="text-lg font-semibold hover:underline">CONTESTS</a>
-        <a href="problemset.html" class="text-lg font-semibold hover:underline">PROBLEMSET</a>
-        <a href="compare.html" class="text-lg font-semibold hover:underline">COMPARE</a>
-        <div id="auth-item">
-          <a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>
+      <div>
+        <label for="handle2" class="block text-lg font-semibold">Handle 2</label>
+        <input type="text" id="handle2" class="mt-1 w-full p-2 bg-gray-800 border border-gray-600 rounded" />
+        <p id="error2" class="text-red-500 text-sm"></p>
+      </div>
+      <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-semibold">Compare</button>
+    </form>
+
+    <div id="results" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+    <div id="commonContestsSection" class="mt-8 hidden">
+      <h2 class="text-2xl font-bold mb-4">Common Contests</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full table-auto bg-gray-800 rounded-lg overflow-hidden">
+          <thead>
+            <tr class="bg-gray-700 text-white">
+              <th class="px-4 py-2">Contest</th>
+              <th id="handle1Header" class="px-4 py-2"></th>
+              <th id="handle2Header" class="px-4 py-2"></th>
+            </tr>
+          </thead>
+          <tbody id="commonContestsTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("compareForm");
+    const results = document.getElementById("results");
+    const error1 = document.getElementById("error1");
+    const error2 = document.getElementById("error2");
+    const commonSection = document.getElementById("commonContestsSection");
+    const commonTable = document.getElementById("commonContestsTable");
+
+    let chart1 = null;
+    let chart2 = null;
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const handle1 = document.getElementById("handle1").value.trim();
+      const handle2 = document.getElementById("handle2").value.trim();
+      error1.textContent = "";
+      error2.textContent = "";
+      results.innerHTML = "";
+      commonTable.innerHTML = "";
+      commonSection.classList.add("hidden");
+
+      const user1 = await fetchUserInfo(handle1, error1);
+      const user2 = await fetchUserInfo(handle2, error2);
+
+      if (!user1 || !user2) return;
+
+      const history1 = await fetchRating(handle1);
+      const history2 = await fetchRating(handle2);
+
+      renderUserCard(user1, history1, 1);
+      renderUserCard(user2, history2, 2);
+
+      const common = findCommonContests(history1, history2);
+      if (common.length) {
+        document.getElementById("handle1Header").textContent = handle1 + " Rank";
+        document.getElementById("handle2Header").textContent = handle2 + " Rank";
+        common.forEach(contest => {
+          const row = `<tr class="bg-gray-900 text-white">
+            <td class="border px-4 py-2">${contest.contestName}</td>
+            <td class="border px-4 py-2">${contest.rank1}</td>
+            <td class="border px-4 py-2">${contest.rank2}</td>
+          </tr>`;
+          commonTable.innerHTML += row;
+        });
+        commonSection.classList.remove("hidden");
+      }
+    });
+
+    async function fetchUserInfo(handle, errorElem) {
+      try {
+        const res = await fetch(`https://codeforces.com/api/user.info?handles=${handle}`);
+        const data = await res.json();
+        if (data.status === "OK") return data.result[0];
+        errorElem.textContent = "User not found";
+      } catch (err) {
+        errorElem.textContent = "Network error";
+      }
+      return null;
+    }
+
+    async function fetchRating(handle) {
+      const res = await fetch(`https://codeforces.com/api/user.rating?handle=${handle}`);
+      const data = await res.json();
+      return data.status === "OK" ? data.result : [];
+    }
+
+    function findCommonContests(a, b) {
+      const bMap = new Map(b.map(c => [c.contestId, c]));
+      return a.filter(c => bMap.has(c.contestId)).map(c => ({
+        contestId: c.contestId,
+        contestName: c.contestName,
+        rank1: c.rank,
+        rank2: bMap.get(c.contestId).rank
+      }));
+    }
+
+    function getHandleColor(rating) {
+      if (rating >= 3000) return "#FF0000";
+      if (rating >= 2600) return "#FF0000";
+      if (rating >= 2400) return "#FF8C00";
+      if (rating >= 2300) return "#FF8C00";
+      if (rating >= 2100) return "#AA00AA";
+      if (rating >= 1900) return "#0000FF";
+      if (rating >= 1600) return "#03A89E";
+      if (rating >= 1400) return "#008000";
+      return "#808080";
+    }
+
+    function renderUserCard(user, ratings, userNum) {
+      const container = document.createElement("div");
+      container.className = "bg-gray-700 rounded-lg p-4";
+
+      const color = getHandleColor(user.rating);
+      container.innerHTML = `
+        <div class="flex justify-center mb-4">
+          <img src="${user.titlePhoto}" class="w-32 h-32 rounded-full border-4 border-white bg-white" />
         </div>
-      </div>
-    </nav>
-  </header>
-
-  <!-- Main Content Container -->
-  <div class="max-w-6xl mx-auto mt-8 p-6 bg-gray-800 rounded-lg shadow-lg">
-    <!-- (Optional) Loading Spinner -->
-    <div id="mainSpinner" class="hidden"></div>
-
-    <!-- Compare Form Card -->
-    <div class="mb-8 p-4 bg-gray-700 rounded shadow">
-      <form action="" id="handleform" class="space-y-4">
-        <div>
-          <label for="handle1" class="block text-lg font-semibold">Handle 1</label>
-          <input type="text" name="handle1" id="handle1" class="mt-1 block w-full p-2 bg-gray-900 border border-gray-600 rounded">
-          <p id="handle1DivErr" class="text-red-500 text-sm hidden">Couldn't find user. Network problem?</p>
+        <h2 class="text-xl font-semibold text-center" style="color: ${color};">${user.handle}</h2>
+        <p class="text-center">Rank: <span style="color: ${color};">${user.rank}</span></p>
+        <p class="text-center">Rating: <span style="color: ${color};">${user.rating}</span></p>
+        <p class="text-center">Max Rating: <span style="color: ${color};">${user.maxRating}</span></p>
+        <div class="mt-4">
+          <h3 class="text-lg font-bold mb-2">Rating History</h3>
+          <canvas id="chart${userNum}" class="w-full h-[300px]"></canvas>
         </div>
-        <div>
-          <label for="handle2" class="block text-lg font-semibold">Handle 2</label>
-          <input type="text" name="handle2" id="handle2" class="mt-1 block w-full p-2 bg-gray-900 border border-gray-600 rounded">
-          <p id="handle2DivErr" class="text-red-500 text-sm hidden">Couldn't find user. Network problem?</p>
-        </div>
-        <button id="submitButton" type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white font-semibold">Compare</button>
-      </form>
-    </div>
+      `;
+      results.appendChild(container);
+      plotChart(ratings, userNum);
+    }
 
-    <!-- Ratings Section -->
-    <div id="ratings" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
-      <!-- Ratings content goes here -->
-    </div>
+    function plotChart(data, num) {
+      const ctx = document.getElementById(`chart${num}`);
+      const labels = data.map(d => new Date(d.ratingUpdateTimeSeconds * 1000).toLocaleDateString());
+      const ratings = data.map(d => d.newRating);
+      const color = num === 1 ? "rgba(34, 197, 94, 1)" : "rgba(54, 162, 235, 1)";
 
-    <!-- Contests Count Section -->
-    <div id="contestsCount" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
-      <!-- Contests count content goes here -->
-    </div>
+      if (num === 1 && chart1) chart1.destroy();
+      if (num === 2 && chart2) chart2.destroy();
 
-    <!-- Up/Down Ratings Section -->
-    <div id="upDowns" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
-      <!-- Up/Down ratings content goes here -->
-    </div>
+      const chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: `Rating (User ${num})`,
+            data: ratings,
+            borderColor: color,
+            backgroundColor: color.replace("1)", "0.2)"),
+            borderWidth: 2,
+            pointRadius: 4,
+          }],
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { ticks: { font: { weight: "bold" } } },
+            y: { beginAtZero: false, ticks: { font: { weight: "bold" } } },
+          },
+          plugins: {
+            legend: {
+              labels: { font: { weight: "bold" } }
+            }
+          }
+        }
+      });
 
-    <!-- Best and Worst Section -->
-    <div id="bestWorst" class="hidden mb-4 p-4 bg-gray-700 rounded shadow overflow-x-auto">
-      <table class="min-w-full">
-        <thead>
-          <tr class="bg-teal-500">
-            <th class="px-4 py-2 text-left">Worst and Best</th>
-            <th id="user1" class="px-4 py-2"></th>
-            <th id="user2" class="px-4 py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr class="bg-gray-600">
-            <td class="px-4 py-2">Best</td>
-            <td id="user1Best" class="px-4 py-2"></td>
-            <td id="user2Best" class="px-4 py-2"></td>
-          </tr>
-          <tr class="bg-gray-600">
-            <td class="px-4 py-2">Worst</td>
-            <td id="user1Worst" class="px-4 py-2"></td>
-            <td id="user2Worst" class="px-4 py-2"></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Timeline Section -->
-    <div id="timelineCon" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
-      <div id="timeline">
-        <!-- Timeline content goes here -->
-      </div>
-    </div>
-
-    <!-- Solved/Tried Section -->
-    <div id="solvedTried" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
-      <!-- Solved/Tried content goes here -->
-    </div>
-
-    <!-- Unsolved Section -->
-    <div id="unsolved" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
-      <!-- Unsolved content goes here -->
-    </div>
-
-    <!-- Average Submissions Section -->
-    <div id="averageSub" title="Average submissions they had to make to solve a single problem" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
-      <!-- Average submissions content goes here -->
-    </div>
-
-    <!-- Maximum Submissions Section -->
-    <div id="maxSub" title="Maximum submissions they had to make to solve a single problem" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
-      <!-- Maximum submissions content goes here -->
-    </div>
-
-    <!-- One Submission Section -->
-    <div id="oneSub" title="Percentage of problems they've solved with just one submission" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
-      <!-- One submission content goes here -->
-    </div>
-
-    <!-- Maximum AC Section -->
-    <div id="maxAc" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
-      <!-- Maximum AC content goes here -->
-    </div>
-
-    <!-- Common Solved Table Section -->
-    <div id="commonSolvedTable" class="hidden mb-4 p-4 bg-gray-700 rounded shadow overflow-x-auto">
-      <table class="min-w-full">
-        <thead>
-          <tr class="bg-teal-500">
-            <th class="px-4 py-2 text-left">Common Solved</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr class="bg-gray-600">
-            <td id="commonSolved" class="px-4 py-2"></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Levels Section -->
-    <div id="levels" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
-      <!-- Levels content goes here -->
-    </div>
-
-    <!-- pRatings Section -->
-    <div id="pRatings" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
-      <!-- pRatings content goes here -->
-    </div>
-
-    <!-- Tags Section -->
-    <div id="tags" class="hidden mb-4 p-4 bg-gray-700 rounded shadow">
-      <!-- Tags content goes here -->
-    </div>
-
-    <!-- Common Contests Section -->
-    <div id="commonContestsCon" class="hidden mb-4 p-4 bg-gray-700 rounded shadow overflow-x-auto">
-      <table class="min-w-full">
-        <thead>
-          <tr class="bg-teal-500">
-            <th class="px-4 py-2 text-left">Common Contests</th>
-            <th id="user1Con" class="px-4 py-2"></th>
-            <th id="user2Con" class="px-4 py-2"></th>
-            <th class="px-4 py-2">Distance</th>
-          </tr>
-        </thead>
-        <tbody id="commonContestList">
-          <!-- Common contest list content goes here -->
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Share and Footer Section
-    <div class="share-div mt-4 text-center">
-      <a class="hidden" href="javascript:fbShareResult()">Share result</a>
-      <div class="my-4">
-        <div class="fb-save" data-size="large" data-uri="https://cfviz.netlify.com"></div>
-      </div>
-      <div class="my-4">
-        <div class="fb-like fb-recommend" data-width="200" data-href="https://cfviz.netlify.com" data-layout="standard" data-action="recommend" data-size="large" data-show-faces="true" data-share="false"></div>
-      </div>
-    </div>
-  </div> -->
-
-  <!-- Scripts -->
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-  <script src="../assets/js/compare_helper.js"></script>
-  <script src="../assets/js/compare.js"></script>
+      if (num === 1) chart1 = chart;
+      else chart2 = chart;
+    }
+  </script>
 </body>
-
 </html>
