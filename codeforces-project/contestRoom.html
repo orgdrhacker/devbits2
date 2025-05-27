@@ -1,261 +1,220 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Contest Room</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-900 text-white">
-  <!-- Navigation Header -->
-  <header class="bg-gray-800 p-4 shadow-lg w-full">
-    <nav class="flex items-center">
-      <div>
-        <a href="index.html" class="text-2xl font-bold pl-4">Coderia</a>
-      </div>
-      <div class="flex ml-auto items-center space-x-6 pr-4">
-        <a href="index.html" class="text-lg font-semibold hover:underline">HOME</a>
-        <a href="profile.html" class="text-lg font-semibold hover:underline">PROFILE</a>
-        <a href="submissions.html" class="text-lg font-semibold hover:underline">SUBMISSIONS</a>
-        <a href="contest_list.html" class="text-lg font-semibold hover:underline">CONTESTS</a>
-        <a href="problemset.html" class="text-lg font-semibold hover:underline">PROBLEMSET</a>
-        <a href="compare.html" class="text-lg font-semibold hover:underline">COMPARE</a>
-        <div id="auth-item">
-          <a href="login.html" id="auth-link" class="text-lg font-semibold hover:underline">LOGIN</a>
-        </div>
+<body class="bg-gray-900 text-white min-h-screen">
+  <!-- Header -->
+  <header class="bg-gray-800 p-4 w-full shadow-lg">
+    <nav class="flex items-center justify-between">
+      <a href="./index.html" class="text-2xl font-bold pl-4">Coderia</a>
+      <div class="flex space-x-6 pr-4">
+        <a href="./index.html" class="hover:underline">HOME</a>
+        <a href="./profile.html" class="hover:underline">PROFILE</a>
+        <a href="./submissions.html" class="hover:underline">SUBMISSIONS</a>
+        <a href="./contest_list.html" class="hover:underline">CONTESTS</a>
+        <a href="./problemset.html" class="hover:underline">PROBLEMSET</a>
+        <a href="./compare.html" class="hover:underline">COMPARE</a>
       </div>
     </nav>
   </header>
 
-  <!-- Main Contest Room Content -->
-  <div class="max-w-4xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg">
-    <h1 id="contestName" class="text-3xl font-bold mb-4">Loading contest...</h1>
-    <div id="countdown" class="text-xl mb-6">Countdown: Loading...</div>
-    <h2 class="text-2xl font-bold mb-4">Problems</h2>
-    <div id="problemsSection" class="bg-gray-700 p-4 rounded mb-6">Loading problems...</div>
-    
-    <!-- Friend Standing Section -->
-    <div id="friendStandingSection" class="hidden">
-      <button id="showFriendsBtn" class="bg-blue-600 px-4 py-2 rounded text-white hover:bg-blue-700 mb-4">
-        Show Friend Standing
-      </button>
-      <div id="scoreboard" class="overflow-x-auto">Loading scoreboard...</div>
+  <!-- Main Content -->
+  <main class="max-w-3xl mx-auto mt-12 bg-gray-800 p-6 rounded-lg shadow-lg">
+    <h1 id="contest-title" class="text-2xl font-bold mb-4">Loading...</h1>
+    <p><strong>Countdown:</strong> <span id="countdown">Loading...</span></p>
+
+    <!-- Problems -->
+    <h2 class="mt-6 text-xl font-semibold">Problems</h2>
+    <div id="problem-list" class="bg-gray-700 p-4 mt-2 rounded-lg">
+      Loading problems...
     </div>
-  </div>
+
+    <!-- Join / Leave -->
+    <div class="mt-6">
+      <button id="join-btn" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded hidden">
+        Join Contest
+      </button>
+      <button id="leave-btn" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded hidden">
+        Leave Contest
+      </button>
+    </div>
+
+    <!-- Leaderboard -->
+    <h2 class="mt-8 text-xl font-semibold">Leaderboard</h2>
+    <div class="overflow-x-auto mt-2">
+      <table id="leaderboard" class="min-w-full text-left bg-gray-700 rounded-lg">
+        <thead>
+          <tr class="border-b border-gray-600">
+            <th class="px-4 py-2">Rank</th>
+            <th class="px-4 py-2">Handle</th>
+            <th class="px-4 py-2">Solved</th>
+            <th class="px-4 py-2">Last Solve</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- filled by JS -->
+        </tbody>
+      </table>
+    </div>
+  </main>
 
   <script>
-    // Get contest ID from URL
-    function getContestId() {
-      const params = new URLSearchParams(window.location.search);
-      return params.get("id");
-    }
-
-    // Load contest from localStorage by contestId
-    function loadContest() {
-      const id = getContestId();
-      if (!id) {
-        document.getElementById("contestName").textContent = "No contest ID provided.";
-        document.getElementById("countdown").textContent = "";
-        document.getElementById("problemsSection").textContent = "";
-        return null;
-      }
+    document.addEventListener("DOMContentLoaded", async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const cid = urlParams.get("id");
       const contests = JSON.parse(localStorage.getItem("contests")) || [];
-      const contest = contests.find(c => c.contestId == id);
-      if (!contest) {
-        document.getElementById("contestName").textContent = "Invalid contest ID.";
-        document.getElementById("countdown").textContent = "";
-        document.getElementById("problemsSection").textContent = "";
-        return null;
-      }
-      return contest;
-    }
+      const contest = contests.find(c => c.contestId == cid);
+      if (!contest) return alert("Contest not found.");
 
-    // Setup countdown timer
-    function setupCountdown(startTime, duration) {
-      const countdownEl = document.getElementById("countdown");
-      const friendSection = document.getElementById("friendStandingSection");
-      let interval = setInterval(() => {
-        const now = Date.now();
-        if (now < startTime) {
-          const remain = startTime - now;
-          const secs = Math.floor(remain / 1000);
-          const hh = String(Math.floor(secs / 3600)).padStart(2, '0');
-          const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
-          const ss = String(secs % 60).padStart(2, '0');
-          countdownEl.textContent = `Contest starts in: ${hh}:${mm}:${ss}`;
-        } else {
-          const endTime = startTime + duration;
-          const remain = endTime - now;
-          if (remain <= 0) {
-            countdownEl.textContent = "Contest ended!";
-            clearInterval(interval);
-          } else {
-            const secs = Math.floor(remain / 1000);
-            const hh = String(Math.floor(secs / 3600)).padStart(2, '0');
-            const mm = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
-            const ss = String(secs % 60).padStart(2, '0');
-            countdownEl.textContent = `Contest ends in: ${hh}:${mm}:${ss}`;
-            friendSection.classList.remove("hidden");
-          }
+      // Header texts
+      document.getElementById("contest-title").textContent = contest.name;
+      // Countdown
+      const countEl = document.getElementById("countdown");
+      const tick = () => {
+        const rem = (contest.startTime + contest.duration) - Date.now();
+        if (rem <= 0) countEl.textContent = "Contest ended";
+        else {
+          const h = Math.floor(rem / 1000 / 60 / 60);
+          const m = Math.floor((rem / 1000 / 60) % 60);
+          countEl.textContent = `${h}h ${m}m remaining`;
         }
-      }, 1000);
-    }
-
-    // Display contest problems
-    function displayProblems(problems) {
-      const section = document.getElementById("problemsSection");
-      if (!problems || problems.length === 0) {
-        section.textContent = "No problems selected for this contest.";
-        return;
-      }
-      let html = `
-        <table class="min-w-full border-collapse">
-          <thead class="bg-gray-800">
-            <tr>
-              <th class="px-4 py-2 border border-gray-600">Name</th>
-              <th class="px-4 py-2 border border-gray-600">ContestID</th>
-              <th class="px-4 py-2 border border-gray-600">Index</th>
-              <th class="px-4 py-2 border border-gray-600">Rating</th>
-              <th class="px-4 py-2 border border-gray-600">Tags</th>
-            </tr>
-          </thead>
-          <tbody>
-      `;
-      problems.forEach(prob => {
-        const url = `https://codeforces.com/problemset/problem/${prob.contestId}/${prob.index}`;
-        html += `
-          <tr class="hover:bg-gray-800">
-            <td class="px-4 py-2 border border-gray-600">
-              <a href="${url}" target="_blank" class="text-blue-400 hover:underline">${prob.name}</a>
-            </td>
-            <td class="px-4 py-2 border border-gray-600">${prob.contestId}</td>
-            <td class="px-4 py-2 border border-gray-600">${prob.index}</td>
-            <td class="px-4 py-2 border border-gray-600">${prob.rating || "N/A"}</td>
-            <td class="px-4 py-2 border border-gray-600">${prob.tags.join(", ")}</td>
-          </tr>
-        `;
-      });
-      html += `</tbody></table>`;
-      section.innerHTML = html;
-    }
-
-    // Fetch friend submissions (only count those after contest start)
-    async function fetchFriendSubmissions(handle, problems, contestStartTime) {
-      const friendResult = {
-        handle: handle,
-        solves: {},
-        solvedCount: 0,
-        sumTime: 0
       };
-      problems.forEach(p => {
-        const key = `${p.contestId}-${p.index}`;
-        friendResult.solves[key] = { solved: false, time: null };
-      });
-      try {
-        const response = await fetch(`https://codeforces.com/api/user.status?handle=${handle}&count=100000`);
-        const data = await response.json();
-        if (data.status !== "OK") return friendResult;
-        const submissions = data.result;
-        for (let sub of submissions) {
-          if (sub.verdict === "OK" && sub.problem && (sub.creationTimeSeconds * 1000) >= contestStartTime) {
-            const key = `${sub.problem.contestId}-${sub.problem.index}`;
-            if (friendResult.solves[key] && !friendResult.solves[key].solved) {
-              friendResult.solves[key].solved = true;
-              friendResult.solves[key].time = sub.creationTimeSeconds;
-            } else if (friendResult.solves[key] && friendResult.solves[key].solved) {
-              if (sub.creationTimeSeconds < friendResult.solves[key].time) {
-                friendResult.solves[key].time = sub.creationTimeSeconds;
-              }
-            }
-          }
-        }
-        let count = 0, sumTime = 0;
-        for (let key in friendResult.solves) {
-          if (friendResult.solves[key].solved) {
-            count++;
-            sumTime += friendResult.solves[key].time;
-          }
-        }
-        friendResult.solvedCount = count;
-        friendResult.sumTime = sumTime;
-      } catch (err) {
-        console.error(`Error fetching submissions for ${handle}:`, err);
-      }
-      return friendResult;
-    }
+      tick();
+      setInterval(tick, 60_000);
 
-    async function buildScoreboard(problems, contestStartTime) {
-      const scoreboardEl = document.getElementById("scoreboard");
-      scoreboardEl.innerHTML = "Loading scoreboard...";
-      let friends = JSON.parse(localStorage.getItem("cf_friends")) || [];
-      if (friends.length === 0) {
-        scoreboardEl.innerHTML = "<p>No friends found. Please add friends first.</p>";
-        return;
-      }
-      const scoreboardData = [];
-      for (let handle of friends) {
-        let data = await fetchFriendSubmissions(handle, problems, contestStartTime);
-        scoreboardData.push(data);
-      }
-      // Sort by solvedCount (desc) then by sumTime (asc)
-      scoreboardData.sort((a, b) => {
-        if (a.solvedCount !== b.solvedCount) {
-          return b.solvedCount - a.solvedCount;
-        } else {
-          return a.sumTime - b.sumTime;
-        }
-      });
-      let html = `
-        <table class="min-w-full border-collapse">
-          <thead class="bg-gray-800">
-            <tr>
-              <th class="px-4 py-2 border border-gray-600">Rank</th>
-              <th class="px-4 py-2 border border-gray-600">Friend</th>
-      `;
-      problems.forEach((p, idx) => {
-        html += `<th class="px-4 py-2 border border-gray-600">P${idx+1}</th>`;
-      });
-      html += `
-              <th class="px-4 py-2 border border-gray-600">Total Solved</th>
-            </tr>
-          </thead>
-          <tbody>
-      `;
-      scoreboardData.forEach((friend, i) => {
-        html += `<tr class="hover:bg-gray-800">
-                   <td class="px-4 py-2 border border-gray-600">${i + 1}</td>
-                   <td class="px-4 py-2 border border-gray-600">${friend.handle}</td>`;
-        problems.forEach((p) => {
-          const key = `${p.contestId}-${p.index}`;
-          const info = friend.solves[key];
-          if (info && info.solved) {
-            const timeStr = new Date(info.time * 1000).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" });
-            html += `<td class="px-4 py-2 border border-gray-600 text-green-400">AC (${timeStr})</td>`;
-          } else {
-            html += `<td class="px-4 py-2 border border-gray-600 text-red-400">--</td>`;
+      // Load Problems
+      try {
+        const r = await fetch("https://codeforces.com/api/problemset.problems");
+        const { result: { problems } } = await r.json();
+        const list = document.getElementById("problem-list");
+        list.innerHTML = "";
+        contest.problems.forEach(code => {
+          const m = code.match(/^(\d+)([A-Z])$/);
+          if (!m) return;
+          const [_, pid, idx] = m;
+          const p = problems.find(x => x.contestId == pid && x.index == idx);
+          if (p) {
+            const card = document.createElement("div");
+            card.className = "bg-gray-600 p-3 rounded mb-2";
+            card.innerHTML = `
+              <a href="https://codeforces.com/contest/${pid}/problem/${idx}"
+                 target="_blank"
+                 class="text-blue-300 font-semibold hover:underline">
+                ${p.name} (${p.index})
+              </a>
+              <span class="text-sm text-gray-300 ml-2">[rating ${p.rating||'–'}]</span>
+            `;
+            list.appendChild(card);
           }
         });
-        html += `<td class="px-4 py-2 border border-gray-600">${friend.solvedCount}</td></tr>`;
-      });
-      html += `</tbody></table>`;
-      scoreboardEl.innerHTML = html;
-    }
+      } catch(e) {
+        console.error(e);
+        document.getElementById("problem-list").textContent = "Failed to load problems.";
+      }
 
-    // Show friend standing on button click
-    document.getElementById("showFriendsBtn").addEventListener("click", async function() {
-      const contest = loadContest();
-      if (!contest) return;
-      await buildScoreboard(contest.problems, contest.startTime);
+      // Join/Leave Logic
+      const user = localStorage.getItem("cf_username");
+      const joinBtn = document.getElementById("join-btn");
+      const leaveBtn = document.getElementById("leave-btn");
+      const saveContest = () => localStorage.setItem("contests", JSON.stringify(contests));
+      const refreshButtons = () => {
+        if (!user) {
+          joinBtn.textContent = "Log in to join";
+          joinBtn.classList.remove("hidden");
+          leaveBtn.classList.add("hidden");
+        } else if (contest.participants?.includes(user)) {
+          leaveBtn.classList.remove("hidden");
+          joinBtn.classList.add("hidden");
+        } else {
+          joinBtn.textContent = "Join Contest";
+          joinBtn.classList.remove("hidden");
+          leaveBtn.classList.add("hidden");
+        }
+      };
+      refreshButtons();
+
+      // Leaderboard
+      const lbBody = document.querySelector("#leaderboard tbody");
+      async function updateLeaderboard() {
+        if (!contest.participants?.length) {
+          lbBody.innerHTML = `<tr><td colspan="4" class="px-4 py-2">No participants yet.</td></tr>`;
+          return;
+        }
+        const results = [];
+        for (const handle of contest.participants) {
+          let solvedSet = new Set();
+          let lastTs = 0;
+          try {
+            const res = await fetch(
+              `https://codeforces.com/api/user.status?handle=${handle}&from=1&count=5000`
+            );
+            const { result, status } = await res.json();
+            if (status !== "OK") throw null;
+            result.forEach(s => {
+              const code = `${s.problem.contestId}${s.problem.index}`;
+              if (s.verdict === "OK" && contest.problems.includes(code)) {
+                solvedSet.add(code);
+                if (s.creationTimeSeconds > lastTs) {
+                  lastTs = s.creationTimeSeconds;
+                }
+              }
+            });
+          } catch {
+            // on error, keep solvedSet empty and lastTs=0
+          }
+          results.push({
+            handle,
+            score: solvedSet.size,
+            lastSolve: lastTs
+          });
+        }
+        // sort by score desc, then lastSolve asc (earlier solves rank higher on tie)
+        results.sort((a,b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return (a.lastSolve || Infinity) - (b.lastSolve || Infinity);
+        });
+
+        lbBody.innerHTML = "";
+        results.forEach((r, i) => {
+          const tr = document.createElement("tr");
+          tr.className = i % 2 ? "bg-gray-800" : "bg-gray-700";
+          const timeText = r.lastSolve
+            ? new Date(r.lastSolve * 1000).toLocaleString()
+            : "—";
+          tr.innerHTML = `
+            <td class="px-4 py-2">${i + 1}</td>
+            <td class="px-4 py-2">${r.handle}</td>
+            <td class="px-4 py-2">${r.score}</td>
+            <td class="px-4 py-2">${timeText}</td>
+          `;
+          lbBody.appendChild(tr);
+        });
+      }
+
+      // Join/Leave handlers + immediate refresh
+      joinBtn.onclick = () => {
+        if (!user) return window.location.href = "./login.html";
+        contest.participants = contest.participants || [];
+        if (!contest.participants.includes(user)) contest.participants.push(user);
+        saveContest();
+        refreshButtons();
+        updateLeaderboard();
+      };
+      leaveBtn.onclick = () => {
+        contest.participants = (contest.participants || []).filter(u => u !== user);
+        saveContest();
+        refreshButtons();
+        updateLeaderboard();
+      };
+
+      // initial + polling
+      updateLeaderboard();
+      setInterval(updateLeaderboard, 60_000);
     });
-
-    // Initialize contest room page
-    function initContestRoom() {
-      const contest = loadContest();
-      if (!contest) return;
-      document.getElementById("contestName").textContent = contest.name || "Unnamed Contest";
-      displayProblems(contest.problems);
-      setupCountdown(contest.startTime, contest.duration);
-    }
-    document.addEventListener("DOMContentLoaded", initContestRoom);
   </script>
 </body>
 </html>
